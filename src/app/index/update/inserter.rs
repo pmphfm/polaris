@@ -22,6 +22,11 @@ pub struct Song {
 	pub album: Option<String>,
 	pub artwork: Option<String>,
 	pub duration: Option<i32>,
+	pub lyricist: Option<String>,
+	pub composer: Option<String>,
+	pub genre: Option<String>,
+	pub category: Option<String>,
+	pub label: Option<String>,
 }
 
 #[derive(Debug, Insertable)]

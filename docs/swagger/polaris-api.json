@@ -1417,6 +1417,26 @@
                     "duration": {
                         "type": "integer",
                         "example": 571
+                    },
+                    "lyricist": {
+                        "type": "string",
+                        "example": "Gulzar"
+                    },
+                    "composer": {
+                        "type": "string",
+                        "example": "R. D. Burman",
+                    },
+                    "genre": {
+                        "type": "string",
+                        "example": "Hindustani"
+                    },
+                    "category": {
+                        "type": "string",
+                        "example": "Filmi"
+                    },
+                    "label": {
+                        "type": "string",
+                        "example": "Saregama"
                     }
                 }
             },
