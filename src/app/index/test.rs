@@ -8,6 +8,7 @@ use crate::db::{directories, songs};
 use crate::test_name;
 
 const TEST_MOUNT_NAME: &str = "root";
+const TEST_ALL_SONGS_COUNT: usize = 14;
 
 #[test]
 fn update_adds_new_content() {
@@ -21,8 +22,8 @@ fn update_adds_new_content() {
 	let connection = ctx.db.connect().unwrap();
 	let all_directories: Vec<Directory> = directories::table.load(&connection).unwrap();
 	let all_songs: Vec<Song> = songs::table.load(&connection).unwrap();
-	assert_eq!(all_directories.len(), 6);
-	assert_eq!(all_songs.len(), 13);
+	assert_eq!(all_directories.len(), 7);
+	assert_eq!(all_songs.len(), TEST_ALL_SONGS_COUNT);
 }
 
 #[test]
@@ -50,8 +51,8 @@ fn update_removes_missing_content() {
 		let connection = ctx.db.connect().unwrap();
 		let all_directories: Vec<Directory> = directories::table.load(&connection).unwrap();
 		let all_songs: Vec<Song> = songs::table.load(&connection).unwrap();
-		assert_eq!(all_directories.len(), 6);
-		assert_eq!(all_songs.len(), 13);
+		assert_eq!(all_directories.len(), 7);
+		assert_eq!(all_songs.len(), TEST_ALL_SONGS_COUNT);
 	}
 
 	let khemmis_directory = test_collection_dir.join("Khemmis");
@@ -61,8 +62,8 @@ fn update_removes_missing_content() {
 		let connection = ctx.db.connect().unwrap();
 		let all_directories: Vec<Directory> = directories::table.load(&connection).unwrap();
 		let all_songs: Vec<Song> = songs::table.load(&connection).unwrap();
-		assert_eq!(all_directories.len(), 4);
-		assert_eq!(all_songs.len(), 8);
+		assert_eq!(all_directories.len(), 5);
+		assert_eq!(all_songs.len(), 9);
 	}
 }
 
@@ -94,13 +95,13 @@ fn can_browse_directory() {
 
 	let files = ctx.index.browse(Path::new(TEST_MOUNT_NAME)).unwrap();
 
-	assert_eq!(files.len(), 2);
-	match files[0] {
+	assert_eq!(files.len(), 3);
+	match files[1] {
 		CollectionFile::Directory(ref d) => assert_eq!(d.path, khemmis_path.to_str().unwrap()),
 		_ => panic!("Expected directory"),
 	}
 
-	match files[1] {
+	match files[2] {
 		CollectionFile::Directory(ref d) => assert_eq!(d.path, tobokegao_path.to_str().unwrap()),
 		_ => panic!("Expected directory"),
 	}
@@ -113,7 +114,7 @@ fn can_flatten_root() {
 		.build();
 	ctx.index.update().unwrap();
 	let songs = ctx.index.flatten(Path::new(TEST_MOUNT_NAME)).unwrap();
-	assert_eq!(songs.len(), 13);
+	assert_eq!(songs.len(), TEST_ALL_SONGS_COUNT);
 	assert_eq!(songs[0].title, Some("Above The Water".to_owned()));
 }
 

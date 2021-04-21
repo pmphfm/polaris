@@ -139,7 +139,7 @@ impl Index {
 		Ok(virtual_directories.collect::<Vec<_>>())
 	}
 
-	pub fn search(&self, query: &str) -> Result<Vec<CollectionFile>> {
+	fn generic_search(&self, query: &str) -> Result<Vec<CollectionFile>> {
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
 		let like_test = format!("%{}%", query);
@@ -169,7 +169,9 @@ impl Index {
 						.or(title.like(&like_test))
 						.or(album.like(&like_test))
 						.or(artist.like(&like_test))
-						.or(album_artist.like(&like_test)),
+						.or(album_artist.like(&like_test))
+						.or(composer.like(&like_test))
+						.or(lyricist.like(&like_test)),
 				)
 				.filter(parent.not_like(&like_test))
 				.load(&connection)?;
@@ -180,6 +182,10 @@ impl Index {
 		}
 
 		Ok(output)
+	}
+
+	pub fn search(&self, query: &str) -> Result<Vec<CollectionFile>> {
+		self.generic_search(query)
 	}
 
 	pub fn get_song(&self, virtual_path: &Path) -> Result<Song> {

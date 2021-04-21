@@ -5,6 +5,8 @@ use crate::app::index;
 use crate::service::test::{add_trailing_slash, constants::*, protocol, ServiceType, TestService};
 use crate::test_name;
 
+const TEST_ALL_SONGS_COUNT: usize = 14;
+
 #[test]
 fn browse_requires_auth() {
 	let mut service = ServiceType::new(&test_name!());
@@ -76,7 +78,7 @@ fn flatten_root() {
 	let response = service.fetch_json::<_, Vec<index::Song>>(&request);
 	assert_eq!(response.status(), StatusCode::OK);
 	let entries = response.body();
-	assert_eq!(entries.len(), 13);
+	assert_eq!(entries.len(), TEST_ALL_SONGS_COUNT);
 }
 
 #[test]
@@ -91,7 +93,7 @@ fn flatten_directory() {
 	let response = service.fetch_json::<_, Vec<index::Song>>(&request);
 	assert_eq!(response.status(), StatusCode::OK);
 	let entries = response.body();
-	assert_eq!(entries.len(), 13);
+	assert_eq!(entries.len(), TEST_ALL_SONGS_COUNT);
 }
 
 #[test]
@@ -126,7 +128,7 @@ fn random_golden_path() {
 	let response = service.fetch_json::<_, Vec<index::Directory>>(&request);
 	assert_eq!(response.status(), StatusCode::OK);
 	let entries = response.body();
-	assert_eq!(entries.len(), 3);
+	assert_eq!(entries.len(), 4);
 }
 
 #[test]
@@ -142,7 +144,7 @@ fn random_with_trailing_slash() {
 	let response = service.fetch_json::<_, Vec<index::Directory>>(&request);
 	assert_eq!(response.status(), StatusCode::OK);
 	let entries = response.body();
-	assert_eq!(entries.len(), 3);
+	assert_eq!(entries.len(), 4);
 }
 
 #[test]
@@ -165,7 +167,7 @@ fn recent_golden_path() {
 	let response = service.fetch_json::<_, Vec<index::Directory>>(&request);
 	assert_eq!(response.status(), StatusCode::OK);
 	let entries = response.body();
-	assert_eq!(entries.len(), 3);
+	assert_eq!(entries.len(), 4);
 }
 
 #[test]
@@ -181,7 +183,7 @@ fn recent_with_trailing_slash() {
 	let response = service.fetch_json::<_, Vec<index::Directory>>(&request);
 	assert_eq!(response.status(), StatusCode::OK);
 	let entries = response.body();
-	assert_eq!(entries.len(), 3);
+	assert_eq!(entries.len(), 4);
 }
 
 #[test]
@@ -218,6 +220,29 @@ fn search_with_query() {
 	match results[0] {
 		index::CollectionFile::Song(ref s) => {
 			assert_eq!(s.title, Some("Beyond The Door".into()))
+		}
+		_ => panic!(),
+	}
+}
+
+#[test]
+fn search_extended_tags() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login_admin();
+	service.index();
+	service.login();
+
+	let request = protocol::search("gulz");
+	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
+	let results = response.body();
+	assert_eq!(results.len(), 1);
+	match results[0] {
+		index::CollectionFile::Song(ref s) => {
+			assert_eq!(
+				s.title,
+				Some("Khaali Haath Shaam Aayi Hai - Recording Session".into())
+			)
 		}
 		_ => panic!(),
 	}

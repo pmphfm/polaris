@@ -58,7 +58,7 @@ fn trigger_index_golden_path() {
 
 	let response = service.fetch_json::<_, Vec<index::Directory>>(&request);
 	let entries = response.body();
-	assert_eq!(entries.len(), 3);
+	assert_eq!(entries.len(), 4);
 }
 
 #[test]
