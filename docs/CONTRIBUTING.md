@@ -24,3 +24,11 @@ While Polaris is running, access the web UI at [http://localhost:5050](http://lo
 ## Running Unit Tests
 
 That's the easy part, simply run `cargo test`!
+
+## Compiling it faster
+
+cargo ecosystem seems to be slow. To speed it up, sccache and lld are enabled by default. You can
+install lld on ubuntu with `apt` and sccache can be installed with `cargo install sccache`. In case
+you don't want to, you can delete file `.cargo/config.toml`.
+
+- Building for the first time is alway slow.
