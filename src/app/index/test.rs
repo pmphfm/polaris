@@ -235,3 +235,109 @@ fn album_art_pattern_is_case_insensitive() {
 		);
 	}
 }
+
+#[test]
+fn query_string_empty_string() {
+	let query = QueryFields {
+		general_query: Some("".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query(""));
+}
+
+#[test]
+fn query_string_generic_query() {
+	let query = QueryFields {
+		general_query: Some("generic query".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query("generic query"));
+}
+
+#[test]
+fn query_string_tokern_empty_string() {
+	let query = QueryFields {
+		general_query: Some("".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query("singer:"));
+}
+#[test]
+fn query_string_token_at_start() {
+	let query = QueryFields {
+		general_query: Some("generic query".to_string()),
+		composer: Some("%burman%".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query("composer:burman generic query"));
+}
+
+#[test]
+fn query_string_token_at_end() {
+	let query = QueryFields {
+		general_query: Some("generic query".to_string()),
+		composer: Some("%d burman%".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query("generic query composer:\"d burman\""));
+}
+
+#[test]
+fn query_string_token_in_the_middle() {
+	let query = QueryFields {
+		general_query: Some("generic query generic2 query2".to_string()),
+		composer: Some("%r. d. burman%".to_string()),
+		..Default::default()
+	};
+	assert_eq!(
+		query,
+		parse_query("generic query composer:'r. d. burman'  generic2  query2 ")
+	);
+}
+
+#[test]
+fn query_string_repeated_token_should_not_be_parsed() {
+	let query = QueryFields {
+		general_query: Some(
+			"singer:\" kishore kumar \" generic query singer:'r. d. burman ' generic2 query2"
+				.to_string(),
+		),
+		..Default::default()
+	};
+	assert_eq!(
+		query,
+		parse_query("  singer:\"  KIsHore  kUmar \"  generic \t query \n singer:'r.  d.  burman '  generic2  query2  ")
+	);
+}
+
+#[test]
+fn query_string_multiple_space_trim() {
+	let query = QueryFields {
+		general_query: Some("generic query generic2 query2".to_string()),
+		composer: Some("%r. d. burman%".to_string()),
+		artist: Some("%kishore kumar%".to_string()),
+		..Default::default()
+	};
+	assert_eq!(
+		query,
+		parse_query("  singer:\"  KIsHore  kUmar \"  generic \t query \n composer:'r.  d.  burman '  generic2  query2  ")
+	);
+}
+
+#[test]
+fn query_string_all_fields() {
+	let query = QueryFields {
+		general_query: Some("filmfare".to_string()),
+		composer: Some("%r. d. burman%".to_string()),
+		artist: Some("%asha%".to_string()),
+		lyricist: Some("%gulzar%".to_string()),
+		album: Some("%ijaazat%".to_string()),
+		album_artist: Some("%burman%".to_string()),
+		title: Some("%choti si%".to_string()),
+		genre: Some("%filmi%".to_string()),
+	};
+	assert_eq!(
+		query,
+		parse_query("  singer:\"  asha\"  filmfare composer:'r.  d.  burman '  lyricist:gulzar title:'CHOTI SI' album:'ijaazat' album_artist:'burman' genre:filmi")
+	);
+}

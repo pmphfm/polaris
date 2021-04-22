@@ -247,3 +247,49 @@ fn search_extended_tags() {
 		_ => panic!(),
 	}
 }
+
+#[test]
+fn search_with_query_one_fields() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login_admin();
+	service.index();
+	service.login();
+
+	let request = protocol::search("lyricist:gulzar");
+	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
+	let results = response.body();
+	assert_eq!(results.len(), 1);
+	match results[0] {
+		index::CollectionFile::Song(ref s) => {
+			assert_eq!(
+				s.title,
+				Some("Khaali Haath Shaam Aayi Hai - Recording Session".into())
+			)
+		}
+		_ => panic!(),
+	}
+}
+
+#[test]
+fn search_with_query_multiple_fields() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login_admin();
+	service.index();
+	service.login();
+
+	let request = protocol::search("lyricist:gulzar composer:'burman'");
+	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
+	let results = response.body();
+	assert_eq!(results.len(), 1);
+	match results[0] {
+		index::CollectionFile::Song(ref s) => {
+			assert_eq!(
+				s.title,
+				Some("Khaali Haath Shaam Aayi Hai - Recording Session".into())
+			)
+		}
+		_ => panic!(),
+	}
+}
