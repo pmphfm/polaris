@@ -6,5 +6,9 @@
   "files.exclude": {
     "**/target": true,
     "**/test-output": true
-  }
+  },
+  "rust-analyzer.checkOnSave.allFeatures": null,
+  "rust-analyzer.checkOnSave.enable": false,
+  "rust-analyzer.checkOnSave.allTargets": false,
+  "editor.formatOnSave": true,
 }
