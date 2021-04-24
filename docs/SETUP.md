@@ -15,6 +15,14 @@ You can now start Polaris from the start menu or from your desktop, Polaris will
 
 ### Linux
 
+#### Building a docker container on linux
+
+You can run the script at `res/unix/local_release_script.sh` to build the docker container from master
+branch of each of the dependencies. The built container image can be found at `tmp/docker-polaris/pmphfm_polaris.tar`.
+On the target system, you can load the tar file with `docker load -i pmphfm_polaris.tar`.
+See [docker-polaris readme](https://github.com/pmphfm/docker-polaris/blob/master/README.md) for
+configuration parameters.
+
 #### Dependencies
 
 1. Install OpenSSL, SQLite and their headers, and some development tools. These are available from your distribution's package manager. For instance on Ubuntu, execute `sudo apt-get install binutils pkg-config libssl-dev`
