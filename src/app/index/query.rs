@@ -11,7 +11,7 @@ use crate::db::{directories, songs};
 
 // A token is one of the field of song structure followed by ':' and a word or words within a
 // single or double quotes.
-// query should contain only one occurance of token.
+// query should contain only one occurrence of token.
 // Ex. composer:"Some Composer" and lyricist:lyricist_name
 fn parse_token(query: &str, token: &str) -> (Option<String>, String) {
 	let mut substr = token.to_string();
@@ -192,6 +192,7 @@ impl Index {
 				.filter_map(|d| d.virtualize(&vfs));
 			output.extend(virtual_directories.map(CollectionFile::Directory));
 
+			println!("Browse: {}", real_path_string);
 			let real_songs: Vec<Song> = songs::table
 				.filter(songs::parent.eq(&real_path_string))
 				.order(sql::<sql_types::Bool>("path COLLATE NOCASE ASC"))

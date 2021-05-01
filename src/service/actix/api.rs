@@ -23,7 +23,7 @@ use std::str;
 use crate::app::{
 	config, ddns,
 	index::{self, Index},
-	lastfm, playlist, settings, thumbnail, user,
+	lastfm, playlist, rj, settings, thumbnail, user,
 	vfs::{self, MountDir},
 };
 use crate::service::{dto, error::*};
@@ -67,7 +67,12 @@ pub fn make_config() -> impl FnOnce(&mut ServiceConfig) + Clone {
 			.service(lastfm_scrobble)
 			.service(lastfm_link_token)
 			.service(lastfm_link)
-			.service(lastfm_unlink);
+			.service(lastfm_unlink)
+			.service(get_announcement)
+			.service(get_rj_admin_settings)
+			.service(put_rj_admin_settings)
+			.service(get_rj_user_settings)
+			.service(put_rj_user_settings);
 	}
 }
 
@@ -854,4 +859,124 @@ async fn lastfm_unlink(
 ) -> Result<HttpResponse, APIError> {
 	block(move || lastfm_manager.unlink(&auth.username)).await?;
 	Ok(HttpResponse::new(StatusCode::OK))
+}
+
+async fn my_block<F, I, E>(f: F) -> Result<I, String>
+where
+	F: FnOnce() -> Result<I, E> + Send + 'static,
+	I: Send + 'static,
+	E: Send + std::fmt::Debug + 'static + Into<String>,
+{
+	actix_web::web::block(f).await.map_err(|e| match e {
+		BlockingError::Error(e) => e.into(),
+		BlockingError::Canceled => "The task was cancelled".to_string(),
+	})
+}
+
+fn make_error_response(err: String) -> HttpResponse {
+	return HttpResponse::build(StatusCode::BAD_REQUEST)
+		.content_type("text/plain")
+		.body(err);
+}
+
+#[get("/rj/songs")]
+async fn get_announcement(
+	index: Data<Index>,
+	_auth: Auth,
+	announce: web::Query<index::RjRequest>,
+) -> HttpResponse {
+	let res = my_block(move || {
+		rj::get_announcement(index.as_ref(), announce.into_inner()).map_err(|op| op.to_string())
+	})
+	.await;
+	if res.is_err() {
+		return make_error_response(res.expect_err("Memory corruption"));
+	}
+	let (content_type, buffer) = res.unwrap();
+	HttpResponse::build(StatusCode::OK)
+		.content_type(content_type)
+		.body(buffer)
+}
+
+#[get("/rj/user_settings")]
+async fn get_rj_user_settings(
+	settings_manager: Data<settings::Manager>,
+	_auth: Auth,
+) -> Result<Json<rj::UserSettings>, APIError> {
+	let settings = block(move || settings_manager.get_rj_user_settings()).await?;
+	Ok(Json(settings))
+}
+
+fn update_user_settings(
+	index: Data<Index>,
+	settings_manager: Data<settings::Manager>,
+	new_settings: Json<rj::UserSettings>,
+) -> Result<(), String> {
+	let mut rj_manager = index.rj_manager.write().unwrap();
+	let to_restore = rj_manager
+		.update_user_settings(new_settings.to_owned())
+		.map_err(|err| err.to_string())?;
+	settings_manager
+		.put_rj_user_settings(&new_settings.to_owned())
+		.map_err(|op| {
+			rj_manager.restore_user_settings(to_restore);
+			op.to_string()
+		})
+}
+
+#[put("/rj/user_settings")]
+async fn put_rj_user_settings(
+	_admin_rights: AdminRights,
+	index: Data<Index>,
+	settings_manager: Data<settings::Manager>,
+	new_settings: Json<rj::UserSettings>,
+) -> HttpResponse {
+	let res = my_block(move || update_user_settings(index, settings_manager, new_settings)).await;
+	if let Some(err) = res.err() {
+		return make_error_response(err);
+	}
+
+	HttpResponse::build(StatusCode::OK)
+		.content_type("text/plain")
+		.body("dancing with wolves error")
+}
+
+#[get("/rj/admin_settings")]
+async fn get_rj_admin_settings(
+	settings_manager: Data<settings::Manager>,
+	_admin_rights: AdminRights,
+) -> Result<Json<rj::AdminSettings>, APIError> {
+	let settings = block(move || settings_manager.get_rj_admin_settings()).await?;
+	Ok(Json(settings))
+}
+
+fn update_admin_settings(
+	index: Data<Index>,
+	settings_manager: Data<settings::Manager>,
+	new_settings: Json<rj::AdminSettings>,
+) -> Result<(), String> {
+	let mut rj_manager = index.rj_manager.write().unwrap();
+	let to_restore = rj_manager
+		.update_admin_settings(new_settings.to_owned())
+		.map_err(|err| err.to_string())?;
+	settings_manager
+		.put_rj_admin_settings(&new_settings.to_owned())
+		.map_err(|op| {
+			rj_manager.update_admin_settings(to_restore).unwrap();
+			op.to_string()
+		})
+}
+
+#[put("/rj/admin_settings")]
+async fn put_rj_admin_settings(
+	_admin_rights: AdminRights,
+	index: Data<Index>,
+	settings_manager: Data<settings::Manager>,
+	new_settings: Json<rj::AdminSettings>,
+) -> HttpResponse {
+	let res = my_block(move || update_admin_settings(index, settings_manager, new_settings)).await;
+	if let Some(err) = res.err() {
+		return make_error_response(err);
+	}
+	HttpResponse::new(StatusCode::OK)
 }

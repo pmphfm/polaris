@@ -88,6 +88,24 @@ table! {
 	}
 }
 
+table! {
+	rj_admin_settings (id) {
+		id -> Integer,
+		tts_service_url -> Nullable<Text>,
+		tts_text_param_key -> Nullable<Text>,
+		tts_enable_ssml -> Integer,
+	}
+}
+
+table! {
+	rj_user_settings (id) {
+		id -> Integer,
+		scripts -> Nullable<Text>,
+		enable_by_default -> Nullable<Integer>,
+		tts_people -> Text,
+	}
+}
+
 joinable!(playlist_songs -> playlists (playlist));
 joinable!(playlists -> users (owner));
 

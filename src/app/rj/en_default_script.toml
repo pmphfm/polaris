@@ -1,0 +1,138 @@
+[[pattern]]
+name = 'whole_title'
+whole = true
+fragments = [
+    'song: ^title^',
+]
+
+[[pattern]]
+name = 'whole_album'
+whole = true
+fragments = [
+    'album: ^album^',
+]
+
+[[pattern]]
+name = 'whole_artist'
+whole = true
+fragments = [
+    'artist: ^artist^',
+    'sung by ^artist^',
+    'performed by ^artist^',
+]
+
+[[pattern]]
+name = 'whole_composer'
+whole = true
+fragments = [
+    'composer: ^composer^',
+    'composed by ^composer^',
+    'music by ^composer^',
+]
+
+[[pattern]]
+name = 'whole_lyricist'
+whole = true
+fragments = [
+    'lyricist: ^lyricist^',
+    'written by ^lyricist^',
+]
+
+[[pattern]]
+name = 'whole_year'
+whole = true
+fragments = [
+    'year: ^year^',
+    'from the year ^year^',
+    'from ^year^',
+]
+
+[[pattern]]
+name = 'whole_genre'
+whole = true
+fragments = [
+    'genre: ^genre^',
+    'Song belongs to ^genre^ genre',
+]
+
+[[pattern]]
+name = 'whole_album_artist'
+whole = true
+fragments = [
+    'Album artist: ^album_artist^',
+    'album by ^album_artist^',
+]
+
+[[pattern]]
+name = 'announce_title'
+whole = true
+fragments = [
+    '^prev_next_title^ ^title^',
+    'You ^title_tense^ ^title^',
+    '^that_next_tense^ ^title^',
+]
+
+[[pattern]]
+name = 'announce_artist'
+whole = false
+fragments = [
+    'by artist ^artist^',
+    'performed by ^artist^',
+]
+
+[[pattern]]
+name = 'announce_album'
+whole = false
+fragments = [
+    'from album ^album^',
+    'featured in the album ^album^',
+]
+
+[[pattern]]
+name = 'announce_some'
+whole = true
+fragments = [
+      '^announce_title^ ^announce_artist^',
+      '^announce_title^ ^announce_album^',
+      '^announce_album^ ^announce_title^',
+      '^announce_album^ ^announce_artist^',
+      '^announce_artist^ ^announce_title^',
+      '^announce_artist^ ^announce_album^',
+      '^announce_title^ ^announce_album^ ^announce_artist^',
+      '^announce_title^ ^announce_artist^ ^announce_album^',
+      '^announce_artist^ ^announce_title^ ^announce_album^',
+      '^announce_artist^ ^announce_album^ ^announce_title^',
+      '^announce_album^ ^announce_artist^ ^announce_title^',
+      '^announce_album^ ^announce_title^ ^announce_artist^',
+]
+
+[[tense_pattern]]
+name = 'title_tense'
+past = 'were listening'
+present = 'will be listening'
+
+[[tense_pattern]]
+name = 'that_next_tense'
+past = 'that was'
+present = 'up next is'
+
+[[tense_pattern]]
+name = 'prev_next_title'
+past = 'Previous song was'
+present = 'Next song is'
+
+[tags_to_announce]
+track_number = 'Exclude'
+disc_number = 'Exclude'
+title = 'Required'
+artist = 'Required'
+album_artist = 'Optional'
+year = 'Optional'
+album = 'Required'
+duration = 'Exclude'
+lyricist = 'Required'
+composer = 'Required'
+genre = 'Optional'
+label = 'Exclude'
+
+conjunctions = ["and then", "then next", "and later", "after that"]

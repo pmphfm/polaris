@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::app::{config, ddns, index::Index, lastfm, playlist, settings, thumbnail, user, vfs};
+use crate::app::{
+	config, ddns, index::Index, lastfm, playlist, rj, settings, thumbnail, user, vfs,
+};
 use crate::db::DB;
 use crate::test::*;
 
@@ -70,7 +72,13 @@ impl ContextBuilder {
 			vfs_manager.clone(),
 			ddns_manager.clone(),
 		);
-		let index = Index::new(db.clone(), vfs_manager.clone(), settings_manager.clone());
+		let rj_manager = rj::Manager::default();
+		let index = Index::new(
+			db.clone(),
+			vfs_manager.clone(),
+			settings_manager.clone(),
+			rj_manager,
+		);
 		let playlist_manager = playlist::Manager::new(db.clone(), vfs_manager.clone());
 		let thumbnail_manager = thumbnail::Manager::new(cache_output_dir);
 		let lastfm_manager = lastfm::Manager::new(index.clone(), user_manager.clone());

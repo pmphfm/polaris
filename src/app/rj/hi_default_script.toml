@@ -1,0 +1,93 @@
+
+[[tense_pattern]]
+name = 'singular'
+past = 'था'
+present = 'है'
+
+[[tense_pattern]]
+name = 'plural'
+past = 'थे'
+present = 'हैं'
+
+[[tense_pattern]]
+name = 'listen_to'
+past = 'सुन रहे थे'
+present = 'सुनेंगे'
+
+
+[[pattern]]
+name = 'whole_lyricist'
+whole = true
+fragments = [
+  'गीतकार ^plural^ ^lyricist^',
+  'शब्दों से सज्जित किया ^singular^ ^lyricist^ ने',
+  'बोल ^plural^ ^lyricist^ के'
+]
+
+[[pattern]]
+name = 'whole_composer'
+whole = true
+fragments =  [
+  'संगीतकार ^plural^ ^composer^',
+  'स्वरों से सज्जित किया ^singular^ ^composer^ ने',
+  'संगीत ^singular^ ^composer^ का'
+] 
+
+[[pattern]]
+name = 'whole_artist'
+whole = true
+fragments = [
+  'गा रहें ^plural^ ^artist^',
+  'आवाज़ ^singular^ ^artist^'
+]
+
+
+[[pattern]]
+name = 'whole_year'
+whole = true
+fragments = [
+  'साल ^singular^ ^year^',
+  'साल ^year^'
+]
+
+[[pattern]]
+name = 'whole_album'
+whole = true
+fragments = [
+  '^album^ का यह गीत',
+  '^album^ का ये गाना',
+  '^album^ से'
+]
+
+[[pattern]]
+name = 'whole_song'
+whole = true
+fragments =  [
+  'गाना ^singular^ ^title^',
+  'गीत ^title^'
+]
+
+[[pattern]]
+name = 'some_announce'
+whole = true
+fragments = [
+  'आप ^listen_to^ ^album^ का ^title^ गाना',
+  '^year^ की ^album^ का गाना ^singular^ ^title^',
+  '^album^ का ^title^ गाना आप ^listen_to^',
+  '^year^ की ^album^ का गाना ^singular^ ^title^ आप ^listen_to^'
+]
+
+
+[tags_to_announce]
+track_number = 'Exclude'
+disc_number = 'Exclude'
+title = 'Required'
+artist = 'Required'
+album_artist = 'Exclude'
+year = 'Optional'
+album = 'Required'
+duration = 'Exclude'
+lyricist = 'Required'
+composer = 'Required'
+genre = 'Optional'
+label = 'Exclude'

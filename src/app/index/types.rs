@@ -78,3 +78,10 @@ impl Directory {
 		Some(self)
 	}
 }
+
+#[derive(Deserialize, Debug, Queryable, Serialize)]
+pub struct RjRequest {
+	pub prev: Option<String>,
+	pub next: Option<String>,
+	pub next_next: Option<String>,
+}

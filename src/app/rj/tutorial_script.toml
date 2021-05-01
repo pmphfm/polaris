@@ -1,0 +1,98 @@
+# The content here defines the various announcements you listen to before/after
+# playing a song. The format lets you easily build hundreds of different
+# announcement so that the most appropriate one is picked.
+#
+# # Terminology
+# fragment - A peice of string that is used to form an announcement.
+# pattern - A named, reusable set of fragments. A pattern can include zero or
+#           more patterns. A pattern cannot include itself.
+# pattern name - patter name can contain letters, numbers and underscore.
+# delimiter - Delimiter is single caret '^' . When a pattern's fragment includes
+#             another pattern, the pattern's name should be surrounded be two
+#             delimiters. Ex: ^my_pattern^.
+# reserved pattern names - id, path, parent, track_number, disc_number, title,
+#                          artist, album_artist, year, album, artwork, duration,
+#                          lyricist, composer, genre, label.
+# tags to announce - Lets you customize what tags will be announced.
+#                    - 'Required' will announce that tag for every song given the song has the tag.
+#                    - 'Optional' will randomly decide to announce the tag or not.
+#                    - 'Exclude' will never announce the given tag.
+#                    'Required' and 'Exclude' are two extreme and may reduce listening experience by
+#                    limiting randomness and being repetative.
+#
+#                    See example below.
+#                    
+#                    Following tags are supported
+#                    track_number, disc_number, title, artist, album_artist,
+#                    year, album, artwork, duration, lyricist, composer, genre,
+#                    label.
+#
+# The examples in this file are based on the following song
+# title = 'Nothing Else Matters'
+# album = 'The Black Album'
+# album_artist = 'Metallica'
+# artist = 'James Hetfield, Jason Newsted'
+# composer = 'James Hetfield, Lars Ulrich'
+# lyricist = 'James Hetfield'
+# year = 1991
+# genre = Heavy Metal
+
+# When the following pattern, simple_title, is used for the example song it will become
+# 'The song is Nothing Else Matters'
+[[pattern]]
+name = 'simple_title'
+whole = true
+fragments = ['The song is ^title^']
+
+# When simple_title_and_album is used for the example song it will become one of
+# - 'You will listen to Nothing Else Matters from The Black Album'
+# - 'You were listening to Nothing Else Matters from the album The Black Album'
+[[pattern]]
+name = 'simple_title_and_album'
+whole = true
+fragments = [
+  'You will listen to ^title^ from ^album^',
+  'You were listening to ^title^ from the album ^album^',
+]
+
+# In above example we used two fragments to switch tense of an announcement. Instead we can make
+# a pattern to include tense_pattern (tensed_listen) to achieve the same.
+[[pattern]]
+name = 'tensed_simple_title_and_album'
+whole = true
+fragments = ['You ^tensed_listen^ ^title^ from ^album^']
+
+[[tense_pattern]]
+name = 'tensed_listen'
+past = 'were listening'
+present = 'will be listening'
+
+# Lets look at slightly more complex example where one pattern depends on
+# another. Here we will define a new pattern that will include previously
+# defined pattern Simple_title_and_album.
+# When expanded this will multiple into 4 possible announcements.
+# - 'You will listen to Nothing Else Matters from The Black Album by Metallica'
+# - 'You were listening to Nothing Else Matters from the album The Black Album by Metallica'
+# - 'You will listen to Nothing Else Matters from The Black Album performed by Metallica'
+# - 'You were listening to Nothing Else Matters from the album The Black Album performed by Metallica'
+[[pattern]]
+name = 'simple_title_album_and_artist'
+whole = true
+fragments = [
+  '^tensed_simple_title_and_album^ by ^album_artist^',
+  '^tensed_simple_title_and_album^ performed by ^album_artist^',
+]
+
+[tags_to_announce]
+track_number = 'Exclude'
+disc_number = 'Exclude'
+title = 'Required'
+artist = 'Required'
+album_artist = 'Optional'
+year = 'Optional'
+album = 'Required'
+duration = 'Exclude'
+lyricist = 'Required'
+composer = 'Required'
+genre = 'Optional'
+label = 'Exclude'

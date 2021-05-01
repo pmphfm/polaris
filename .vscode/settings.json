@@ -21,6 +21,7 @@
     "NOCASE",
     "reindex",
     "scrobble",
+    "ssml",
     "substr",
     "ureq"
   ],

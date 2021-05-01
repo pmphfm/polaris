@@ -1,8 +1,8 @@
 use log::error;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::time::Duration;
 
-use crate::app::{settings, vfs};
+use crate::app::{rj, settings, vfs};
 use crate::db::DB;
 
 mod metadata;
@@ -22,10 +22,16 @@ pub struct Index {
 	vfs_manager: vfs::Manager,
 	settings_manager: settings::Manager,
 	pending_reindex: Arc<(Mutex<bool>, Condvar)>,
+	pub rj_manager: Arc<RwLock<rj::Manager>>,
 }
 
 impl Index {
-	pub fn new(db: DB, vfs_manager: vfs::Manager, settings_manager: settings::Manager) -> Self {
+	pub fn new(
+		db: DB,
+		vfs_manager: vfs::Manager,
+		settings_manager: settings::Manager,
+		rj_manager: rj::Manager,
+	) -> Self {
 		let index = Self {
 			db,
 			vfs_manager,
@@ -36,6 +42,7 @@ impl Index {
 				Mutex::new(false),
 				Condvar::new(),
 			)),
+			rj_manager: Arc::new(RwLock::new(rj_manager)),
 		};
 
 		let commands_index = index.clone();

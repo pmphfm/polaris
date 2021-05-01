@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
 
+use log::info;
+
 use crate::db::DB;
 use crate::paths::Paths;
 
@@ -9,6 +11,7 @@ pub mod ddns;
 pub mod index;
 pub mod lastfm;
 pub mod playlist;
+pub mod rj;
 pub mod settings;
 pub mod thumbnail;
 pub mod user;
@@ -48,7 +51,18 @@ impl App {
 		let auth_secret = settings_manager.get_auth_secret()?;
 		let ddns_manager = ddns::Manager::new(db.clone());
 		let user_manager = user::Manager::new(db.clone(), auth_secret);
-		let index = index::Index::new(db.clone(), vfs_manager.clone(), settings_manager.clone());
+
+		let rj_admin_settings = settings_manager.get_rj_admin_settings()?;
+		info!("RJ TTS service settings are: {:?}", rj_admin_settings,);
+		let rj_manager =
+			rj::Manager::create(rj_admin_settings, settings_manager.get_rj_user_settings()?)?;
+
+		let index = index::Index::new(
+			db.clone(),
+			vfs_manager.clone(),
+			settings_manager.clone(),
+			rj_manager,
+		);
 		let config_manager = config::Manager::new(
 			settings_manager.clone(),
 			user_manager.clone(),

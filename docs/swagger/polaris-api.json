@@ -797,7 +797,11 @@
                         "description": "The maximum size of the thumbnail, either small (400x400), large (1200x1200) or native",
                         "schema": {
                             "type": "string",
-                            "enum": ["small", "large", "native"],
+                            "enum": [
+                                "small",
+                                "large",
+                                "native"
+                            ],
                             "default": "small"
                         }
                     },
@@ -829,6 +833,179 @@
                         "auth_http_bearer": [],
                         "auth_query_parameter": [],
                         "auth_cookie": []
+                    }
+                ]
+            }
+        },
+        "/rj/songs": {
+            "get": {
+                "tags": [
+                    "Collection"
+                ],
+                "summary": "Access a media file containing announcement about the songs",
+                "operationId": "getAnnouncement",
+                "parameters": [
+                    {
+                        "name": "prev",
+                        "in": "query",
+                        "description": "Path to the previous song played",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "next",
+                        "in": "query",
+                        "description": "Path to the next song that will beplayed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "next_next",
+                        "in": "query",
+                        "description": "Path to the next to next song that will beplayed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "audio/*": {
+                                "schema": {
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "auth_http_basic": [],
+                        "auth_http_bearer": [],
+                        "auth_query_parameter": [],
+                        "auth_cookie": []
+                    }
+                ]
+            }
+        },
+        "/rj/admin_settings": {
+            "get": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Reads the existing admin settings",
+                "operationId": "getRjAdminSettings",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#components/schemas/RjAdminSettings"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "admin_http_basic": [],
+                        "admin_http_bearer": [],
+                        "admin_query_parameter": [],
+                        "admin_cookie": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Amends the rj admin server settings",
+                "operationId": "putRjAdminSettings",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#components/schemas/RjAdminSettings"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "admin_http_basic": [],
+                        "admin_http_bearer": [],
+                        "admin_query_parameter": [],
+                        "admin_cookie": []
+                    }
+                ]
+            }
+        },
+        "/rj/user_settings": {
+            "get": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Reads the existing user settings",
+                "operationId": "getRjUserSettings",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#components/schemas/RjUserSettings"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "auth_http_basic": [],
+                        "auth_http_bearer": [],
+                        "auth_query_parameter": [],
+                        "auth_cookie": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Configuration"
+                ],
+                "summary": "Amends the rj user server settings",
+                "operationId": "putRjAdminSettings",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#components/schemas/RjUserSettings"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "admin_http_basic": [],
+                        "admin_http_bearer": [],
+                        "admin_query_parameter": [],
+                        "admin_cookie": []
                     }
                 ]
             }
@@ -1466,7 +1643,63 @@
                         }
                     }
                 }
-            }
+            },
+            "RjUserSettings": {
+                "type": "object",
+                "properties": {
+                    "scripts": {
+                        "type": "string",
+                        "example": "Hello"
+                    },
+                    "enable_by_default": {
+                        "type": "boolean"
+                    },
+                    "tts_people": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Rj"
+                        }
+                    }
+                }
+            },
+            "RjAdminSettings": {
+                "type": "object",
+                "properties": {
+                    "tts_url": {
+                        "type": "string",
+                        "example": "http://192.168.1.100:12345"
+                    },
+                    "tts_key": {
+                        "type": "string",
+                        "example": "text"
+                    },
+                    "enable_ssml": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "Rj": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Rj Mario"
+                    },
+                    "voice_model": {
+                        "type": "string",
+                        "example": "en-US-MichelleNeural"
+                    },
+                    "language": {
+                        "type": "string",
+                        "example": "en-US"
+                    }
+                },
+                "required": [
+                    "name",
+                    "voice_model",
+                    "language"
+                ]
+            },
         },
         "securitySchemes": {
             "auth_http_bearer": {
