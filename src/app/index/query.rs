@@ -4,6 +4,7 @@ use diesel::dsl::sql;
 use diesel::prelude::*;
 use diesel::sql_types;
 use regex::Regex;
+use std::ops::Range;
 use std::path::Path;
 
 use super::*;
@@ -62,6 +63,41 @@ fn parse_token(query: &String, token: &str) -> (Option<String>, String) {
 	(None, query)
 }
 
+fn parse_year(query: &String, token: &str) -> (Option<Range<i32>>, String) {
+	let (raw_years, ret) = parse_token(&query, token);
+
+	println!("{:?}", raw_years);
+
+	let raw_years = match raw_years {
+		Some(x) => x.replace('%', "").clone(),
+		None => {
+			return (None, ret);
+		}
+	};
+	let hyphen_count = raw_years.matches('-').count();
+
+	if hyphen_count > 1 {
+		return (None, ret);
+	}
+
+	let string_years: Vec<&str> = raw_years.split('-').collect();
+	println!("{:?}", string_years);
+	let start = string_years[0].parse::<i32>();
+	let mut end = Ok(0);
+	if hyphen_count == 0 {
+		if start.is_ok() {
+			end = Ok(start.as_ref().unwrap().clone());
+		}
+	} else {
+		end = string_years[1].parse::<i32>();
+	}
+	if start.is_err() || end.is_err() {
+		return (None, ret);
+	}
+
+	(Some(start.unwrap()..end.unwrap() + 1 as i32), ret)
+}
+
 #[derive(Default, Debug, PartialEq)]
 pub struct QueryFields {
 	pub title: Option<String>,
@@ -72,6 +108,7 @@ pub struct QueryFields {
 	pub composer: Option<String>,
 	pub genre: Option<String>,
 	pub general_query: Option<String>,
+	pub years: Option<Range<i32>>,
 }
 
 pub fn parse_query(query: &str) -> QueryFields {
@@ -86,6 +123,7 @@ pub fn parse_query(query: &str) -> QueryFields {
 	let (lyricist, query) = parse_token(&query, "lyricist");
 	let (composer, query) = parse_token(&query, "composer");
 	let (genre, query) = parse_token(&query, "genre");
+	let (years, query) = parse_year(&query, "year");
 	QueryFields {
 		title,
 		artist,
@@ -95,6 +133,7 @@ pub fn parse_query(query: &str) -> QueryFields {
 		composer,
 		genre,
 		general_query: Some(query),
+		years,
 	}
 }
 
@@ -312,6 +351,14 @@ impl Index {
 			}
 			match fields.genre.as_ref() {
 				Some(genre_name) => filter = filter.filter(genre.like(genre_name)),
+				None => {}
+			}
+			match fields.years.as_ref() {
+				Some(years) => {
+					filter = filter
+						.filter(year.ge(years.start as i32))
+						.filter(year.lt(years.end as i32))
+				}
 				None => {}
 			}
 

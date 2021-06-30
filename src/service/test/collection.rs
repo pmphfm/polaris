@@ -287,3 +287,43 @@ fn search_with_query_multiple_fields() {
 		_ => panic!(),
 	}
 }
+
+#[test]
+fn search_with_query_one_year() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login_admin();
+	service.index();
+	service.login();
+
+	let request = protocol::search("year:2016");
+	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
+	let results = response.body();
+	assert_eq!(results.len(), 13);
+	match results[0] {
+		index::CollectionFile::Song(ref s) => {
+			assert_eq!(s.title, Some("ピクニック (Picnic) (Remix)".into()))
+		}
+		_ => panic!(),
+	}
+}
+
+#[test]
+fn search_with_query_year_range() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login_admin();
+	service.index();
+	service.login();
+
+	let request = protocol::search("year:2000-2017");
+	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
+	let results = response.body();
+	assert_eq!(results.len(), 13);
+	match results[0] {
+		index::CollectionFile::Song(ref s) => {
+			assert_eq!(s.title, Some("ピクニック (Picnic) (Remix)".into()))
+		}
+		_ => panic!(),
+	}
+}

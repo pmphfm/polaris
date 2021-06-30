@@ -705,7 +705,7 @@
                     {
                         "name": "query",
                         "in": "path",
-                        "description": "Search query used to filter results",
+                        "description": "Search query used to filter results. Api also allows searching specific fields in the tag. The allowed fields are artist, album_artist, composer, lyricist, album, title, genre and year. year can be specified as single year(like year:1988) or as a range(like year:1988-2000). A set of words can be delimited with &quot; or ' Ex: composer:'first last name' or title:hello.",
                         "schema": {
                             "type": "string"
                         }

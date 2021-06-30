@@ -334,23 +334,43 @@ fn query_string_multiple_space_trim() {
 }
 
 #[test]
+fn query_string_with_one_year() {
+	let query = QueryFields {
+		years: Some(1998..1999),
+		general_query: Some("".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query("year:1998"));
+}
+
+#[test]
+fn query_string_with_multiple_years() {
+	let query = QueryFields {
+		years: Some(1998..2005),
+		general_query: Some("".to_string()),
+		..Default::default()
+	};
+	assert_eq!(query, parse_query("year:1998-2004"));
+}
+
+#[test]
 fn query_string_all_fields() {
 	let query = QueryFields {
-		general_query: Some("generic query generic2 query2".to_string()),
-		composer: Some("%first1 last1%".to_string()),
-		artist: Some("%first2 last2%".to_string()),
-		lyricist: Some("%lyricist1%".to_string()),
-		album: Some("%album1%".to_string()),
-		album_artist: Some("%album_artist1%".to_string()),
-		title: Some("%part of title%".to_string()),
-		genre: Some("%genre1%".to_string()),
+		general_query: Some("filmfare".to_string()),
+		composer: Some("%r. d. burman%".to_string()),
+		artist: Some("%asha%".to_string()),
+		lyricist: Some("%gulzar%".to_string()),
+		album: Some("%ijaazat%".to_string()),
+		album_artist: Some("%burman%".to_string()),
+		title: Some("%choti si%".to_string()),
+		genre: Some("%filmi%".to_string()),
+		years: Some(0..2000),
 	};
 	assert_eq!(
 		query,
 		parse_query(
-			"  artist:\"  fIrst2  LasT2 \"  generic \t query \n composer:'FiRST1 LAST1  '  \
-		   generic2  query2  lyricist:lyricist1 title:'Part OF TITLE' album:'album1' album_artist:\
-		   'album_artist1' genre:genre1"
+			"  year:0-1999 artist:\"  asha\"  filmfare composer:'r.  d.  burman '  \
+		  lyricist:gulzar title:'CHOTI SI' album:'ijaazat' album_artist:'burman' genre:filmi"
 		)
 	);
 }
