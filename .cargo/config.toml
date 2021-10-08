@@ -1,3 +1,3 @@
-# [build]
-# rustc-wrapper = "$HOME/.cargo/bin/sccache"
-# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+[build]
+rustc-wrapper = "/home/pmphfm/.cargo/bin/sccache"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
