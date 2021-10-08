@@ -13,9 +13,9 @@ use crate::db::{directories, songs};
 // single or double quotes.
 // query should contain only one occurance of token.
 // Ex. composer:"Some Composer" and lyricist:lyricist_name
-fn parse_token(query: &String, token: &str) -> (Option<String>, String) {
+fn parse_token(query: &str, token: &str) -> (Option<String>, String) {
 	let mut substr = token.to_string();
-	substr.push_str(":");
+	substr.push(':');
 	let count = query.matches(&substr).count();
 
 	if count == 0 || count > 1 {
@@ -33,7 +33,7 @@ fn parse_token(query: &String, token: &str) -> (Option<String>, String) {
 		query.push_str(splits.remove(0).trim());
 	}
 	let re = Regex::new(r#""([^"]+)"|'([^']+)'|^([\w\-]+)"#).unwrap();
-	let t = match re.find(&splits[0]) {
+	let t = match re.find(splits[0]) {
 		Some(x) => x,
 		None => {
 			return (None, query);
@@ -46,29 +46,29 @@ fn parse_token(query: &String, token: &str) -> (Option<String>, String) {
 			.trim() + "%";
 	let rest = splits[0][t.end()..].trim();
 
-	if rest.len() > 0 {
-		if query.len() == 0 {
+	if !rest.is_empty() {
+		if query.is_empty() {
 			query = rest.to_string();
 		} else {
-			query.push_str(" ");
+			query.push(' ');
 			query.push_str(rest);
 		}
 	}
 
-	if artist.len() > 0 {
-		return (Some(artist.to_string()), query.to_string());
+	if !artist.is_empty() {
+		return (Some(artist), query.to_string());
 	}
 
 	(None, query)
 }
 
-fn parse_year(query: &String, token: &str) -> (Option<Range<i32>>, String) {
-	let (raw_years, ret) = parse_token(&query, token);
+fn parse_year(query: &str, token: &str) -> (Option<Range<i32>>, String) {
+	let (raw_years, ret) = parse_token(query, token);
 
 	println!("{:?}", raw_years);
 
 	let raw_years = match raw_years {
-		Some(x) => x.replace('%', "").clone(),
+		Some(x) => x.replace('%', ""),
 		None => {
 			return (None, ret);
 		}
@@ -85,7 +85,7 @@ fn parse_year(query: &String, token: &str) -> (Option<Range<i32>>, String) {
 	let mut end = Ok(0);
 	if hyphen_count == 0 {
 		if start.is_ok() {
-			end = Ok(start.as_ref().unwrap().clone());
+			end = Ok(*start.as_ref().unwrap());
 		}
 	} else {
 		end = string_years[1].parse::<i32>();
@@ -94,7 +94,7 @@ fn parse_year(query: &String, token: &str) -> (Option<Range<i32>>, String) {
 		return (None, ret);
 	}
 
-	(Some(start.unwrap()..end.unwrap() + 1 as i32), ret)
+	(Some(start.unwrap()..end.unwrap() + 1_i32), ret)
 }
 
 #[derive(Default, Debug, PartialEq)]
@@ -322,43 +322,38 @@ impl Index {
 		{
 			use self::songs::dsl::*;
 			let mut filter = songs.into_boxed();
-			match fields.title.as_ref() {
-				Some(title_name) => filter = filter.filter(title.like(title_name)),
-				None => {}
+			if let Some(title_name) = fields.title.as_ref() {
+				filter = filter.filter(title.like(title_name))
 			}
-			match fields.artist.as_ref() {
-				Some(artist_name) => filter = filter.filter(artist.like(artist_name)),
-				None => {}
+
+			if let Some(artist_name) = fields.artist.as_ref() {
+				filter = filter.filter(artist.like(artist_name))
 			}
-			match fields.album_artist.as_ref() {
-				Some(album_artist_name) => {
-					filter = filter.filter(album_artist.like(album_artist_name))
-				}
-				None => {}
+
+			if let Some(album_artist_name) = fields.album_artist.as_ref() {
+				filter = filter.filter(album_artist.like(album_artist_name))
 			}
-			match fields.album.as_ref() {
-				Some(album_name) => filter = filter.filter(album.like(album_name)),
-				None => {}
+
+			if let Some(album_name) = fields.album.as_ref() {
+				filter = filter.filter(album.like(album_name))
 			}
-			match fields.lyricist.as_ref() {
-				Some(lyricist_name) => filter = filter.filter(lyricist.like(lyricist_name)),
-				None => {}
+
+			if let Some(lyricist_name) = fields.lyricist.as_ref() {
+				filter = filter.filter(lyricist.like(lyricist_name))
 			}
-			match fields.composer.as_ref() {
-				Some(composer_name) => filter = filter.filter(composer.like(composer_name)),
-				None => {}
+
+			if let Some(composer_name) = fields.composer.as_ref() {
+				filter = filter.filter(composer.like(composer_name))
 			}
-			match fields.genre.as_ref() {
-				Some(genre_name) => filter = filter.filter(genre.like(genre_name)),
-				None => {}
+
+			if let Some(genre_name) = fields.genre.as_ref() {
+				filter = filter.filter(genre.like(genre_name))
 			}
-			match fields.years.as_ref() {
-				Some(years) => {
-					filter = filter
-						.filter(year.ge(years.start as i32))
-						.filter(year.lt(years.end as i32))
-				}
-				None => {}
+
+			if let Some(years) = fields.years.as_ref() {
+				filter = filter
+					.filter(year.ge(years.start as i32))
+					.filter(year.lt(years.end as i32))
 			}
 
 			let real_songs: Vec<Song> = filter.load(&connection)?;
