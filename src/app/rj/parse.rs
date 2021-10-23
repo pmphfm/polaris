@@ -1,6 +1,7 @@
 use crate::app::rj::error::ParseError as Error;
 use crate::app::rj::user_opts::{FieldsToAnnounce, TensedUserField, UserAnnouncementOptions};
-use std::collections::BTreeMap;
+use lazy_static::lazy_static;
+use std::collections::{BTreeMap, HashSet};
 use std::mem;
 
 /// We parse all possible sentences and keep that in memory.
@@ -116,24 +117,28 @@ pub static RESERVED_DELIMITED_FIELD_COMPOSER: &str = "^composer^";
 pub static RESERVED_DELIMITED_FIELD_GENRE: &str = "^genre^";
 pub static RESERVED_DELIMITED_FIELD_LABEL: &str = "^label^";
 
-static RESERVED_FIELD_NAMES: [&str; 16] = [
-	RESERVED_FIELD_ID,
-	RESERVED_FIELD_PATH,
-	RESERVED_FIELD_PARENT,
-	RESERVED_FIELD_TRACK_NUMBER,
-	RESERVED_FIELD_DISC_NUMBER,
-	RESERVED_FIELD_TITLE,
-	RESERVED_FIELD_ARTIST,
-	RESERVED_FIELD_ALBUM_ARTIST,
-	RESERVED_FIELD_YEAR,
-	RESERVED_FIELD_ALBUM,
-	RESERVED_FIELD_ARTWORK,
-	RESERVED_FIELD_DURATION,
-	RESERVED_FIELD_LYRICIST,
-	RESERVED_FIELD_COMPOSER,
-	RESERVED_FIELD_GENRE,
-	RESERVED_FIELD_LABEL,
-];
+lazy_static! {
+	static ref RESERVED_SONG_FIELDS: HashSet<&'static str> = {
+		let mut set = HashSet::new();
+		set.insert(RESERVED_FIELD_ID);
+		set.insert(RESERVED_FIELD_PATH);
+		set.insert(RESERVED_FIELD_PARENT);
+		set.insert(RESERVED_FIELD_TRACK_NUMBER);
+		set.insert(RESERVED_FIELD_DISC_NUMBER);
+		set.insert(RESERVED_FIELD_TITLE);
+		set.insert(RESERVED_FIELD_ARTIST);
+		set.insert(RESERVED_FIELD_ALBUM_ARTIST);
+		set.insert(RESERVED_FIELD_YEAR);
+		set.insert(RESERVED_FIELD_ALBUM);
+		set.insert(RESERVED_FIELD_ARTWORK);
+		set.insert(RESERVED_FIELD_DURATION);
+		set.insert(RESERVED_FIELD_LYRICIST);
+		set.insert(RESERVED_FIELD_COMPOSER);
+		set.insert(RESERVED_FIELD_GENRE);
+		set.insert(RESERVED_FIELD_LABEL);
+		set
+	};
+}
 
 fn get_delimited_name(name: &str) -> String {
 	FIELD_DELIMITER.to_string() + name + &FIELD_DELIMITER.to_string()
@@ -144,12 +149,7 @@ fn strip_delimiters(name: &str) -> String {
 }
 
 fn is_reserved(name: &str) -> bool {
-	for reserved in RESERVED_FIELD_NAMES.iter() {
-		if name.eq(*reserved) {
-			return true;
-		}
-	}
-	false
+	RESERVED_SONG_FIELDS.contains(name)
 }
 
 // Returns count and index of (first, last) occurrence.
@@ -194,6 +194,7 @@ pub struct AnnouncementOptions {
 	neutral: BTreeMap<String, Field>,
 	tense: BTreeMap<String, TensedUserField>,
 	pub tags_to_announce: FieldsToAnnounce,
+	pub conjunctions: Vec<String>,
 }
 
 impl AnnouncementOptions {
@@ -272,7 +273,7 @@ impl AnnouncementOptions {
 			if is_reserved(name) {
 				return Err(Error::FragmentUsesReservedName {
 					name: name.to_owned(),
-					reserved: format!("{:?}", RESERVED_FIELD_NAMES),
+					reserved: format!("{:?}", *RESERVED_SONG_FIELDS),
 				});
 			}
 		}
@@ -533,6 +534,18 @@ impl AnnouncementOptions {
 		Ok(())
 	}
 
+	fn conjunctions_have_no_delimiter(&self) -> Result<(), Error> {
+		for c in &self.conjunctions {
+			if c.contains(FIELD_DELIMITER) {
+				return Err(Error::DelimiterNotAllowed {
+					delimiter: FIELD_DELIMITER,
+					conjunction: c.clone(),
+				});
+			}
+		}
+		Ok(())
+	}
+
 	pub fn from_user(
 		user_opts: &UserAnnouncementOptions,
 		depth_limit: usize,
@@ -547,6 +560,7 @@ impl AnnouncementOptions {
 				.as_ref()
 				.unwrap_or(&FieldsToAnnounce::default())
 				.clone(),
+			conjunctions: user_opts.conjunctions.as_ref().unwrap_or(&vec![]).clone(),
 		};
 		let _ = opts.build_map(user_opts)?;
 		let _ = opts.has_self_dependency()?;
@@ -557,6 +571,7 @@ impl AnnouncementOptions {
 		let _ = opts.deflate_tense()?;
 		let _ = opts.each_field_is_resolved_once(depth_limit)?;
 		let _ = opts.remove_unresolved(depth_limit)?;
+		let _ = opts.conjunctions_have_no_delimiter()?;
 		Ok(opts)
 	}
 

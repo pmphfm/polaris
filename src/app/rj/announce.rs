@@ -36,6 +36,7 @@ pub fn get_announcement(
 	let mut announcement = get_path_announcement(index, &request.prev, false)?;
 	let natural_pause = ". ".to_owned();
 	announcement += &(natural_pause.clone() + &get_path_announcement(index, &request.next, true)?);
+	announcement += &(natural_pause.clone() + &index.rj_manager.read().unwrap().get_conjunction());
 	announcement += &(natural_pause + &get_path_announcement(index, &request.next_next, true)?);
 	announcement = String::from_utf8(announcement.into_bytes())
 		.map_err(|op| ParseError::FailedToBuild(op.to_string()))?;

@@ -61,4 +61,10 @@ pub enum ParseError {
 
 	#[error("Invalid input: {0}")]
 	InvalidInput(String),
+
+	#[error("Delimiter({delimiter:?}) not allowed in conjunctions: {conjunction:?}")]
+	DelimiterNotAllowed {
+		delimiter: char,
+		conjunction: String,
+	},
 }

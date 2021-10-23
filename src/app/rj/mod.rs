@@ -216,6 +216,15 @@ impl Manager {
 		Ok((content_type, buf))
 	}
 
+	/// Returns a randomly selected conjunction that can be used to join announcements of next song
+	/// and the song after that.
+	pub fn get_conjunction(&self) -> String {
+		if let Some(cache) = &self.cache {
+			return cache.get_conjunction();
+		}
+		"".to_string()
+	}
+
 	/// Updates script cache and enable_by_default.
 	/// Nothing is changed on failure to parse/verify script.
 	/// Returns old settings in a restore-able format.

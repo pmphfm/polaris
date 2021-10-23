@@ -342,6 +342,7 @@ fn walk_map(self_map: &mut BTreeMap<FieldSet, BTreeSet<String>>, map: &BTreeMap<
 pub struct ScriptCache {
 	past: BTreeMap<FieldSet, BTreeSet<String>>,
 	present: BTreeMap<FieldSet, BTreeSet<String>>,
+	conjunctions: Vec<String>,
 	include: FieldSet,
 	optional: FieldSet,
 	exclude: FieldSet,
@@ -353,6 +354,7 @@ impl From<&AnnouncementOptions> for ScriptCache {
 		let mut cache = ScriptCache {
 			past: BTreeMap::new(),
 			present: BTreeMap::new(),
+			conjunctions: opts.conjunctions.clone(),
 			include,
 			optional,
 			exclude,
@@ -362,6 +364,9 @@ impl From<&AnnouncementOptions> for ScriptCache {
 		walk_map(&mut cache.past, opts.get_neutral());
 		walk_map(&mut cache.present, opts.get_present());
 		walk_map(&mut cache.present, opts.get_neutral());
+		if cache.conjunctions.is_empty() {
+			cache.conjunctions.push("".to_string());
+		}
 
 		cache
 	}
@@ -462,6 +467,10 @@ impl ScriptCache {
 			true => None,
 			false => Some(announcement),
 		}
+	}
+
+	pub fn get_conjunction(&self) -> String {
+		self.conjunctions[rand::random::<usize>() % self.conjunctions.len()].to_string()
 	}
 }
 
