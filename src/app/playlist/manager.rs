@@ -2,12 +2,48 @@ use anyhow::Result;
 use core::clone::Clone;
 use diesel::prelude::*;
 use diesel::BelongingToDsl;
-use std::path::Path;
+use serde::{Deserialize, Serialize};
+use std::ffi::{OsStr, OsString};
+use std::fmt::Write;
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 use super::*;
 use crate::app::index::Song;
 use crate::app::vfs;
 use crate::db::{playlist_songs, playlists, songs, users, DB};
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+pub enum PlaylistType {
+	m3u,
+}
+
+impl Default for PlaylistType {
+	fn default() -> Self {
+		Self::m3u
+	}
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PlaylistExport {
+	pub name: String,
+	pub kind: Option<PlaylistType>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PlaylistImport {
+	// Playlist name to save as.
+	pub name: String,
+
+	// Type of input playlist.
+	pub kind: Option<PlaylistType>,
+
+	// If true, partial playlist is imported.
+	pub partial: Option<bool>,
+
+	// If true, tries to match imperfect matches.
+	pub fuzzy_match: Option<bool>,
+}
 
 #[derive(Clone)]
 pub struct Manager {
@@ -128,8 +164,7 @@ impl Manager {
 		Ok(())
 	}
 
-	pub fn read_playlist(&self, playlist_name: &str, owner: &str) -> Result<Vec<Song>, Error> {
-		let vfs = self.vfs_manager.get_vfs()?;
+	pub fn read_playlist_real(&self, playlist_name: &str, owner: &str) -> Result<Vec<Song>, Error> {
 		let songs: Vec<Song>;
 		let song_paths: Vec<String>;
 
@@ -156,8 +191,8 @@ impl Manager {
 					.filter(name.eq(playlist_name).and(owner.eq(user.id)))
 					.get_result(&connection)
 					.optional()
-					.map_err(anyhow::Error::new)?
-					.ok_or(Error::PlaylistNotFound)?
+					.map_err(|_| Error::PlaylistNotFound(playlist_name.to_string()))?
+					.ok_or_else(|| Error::PlaylistNotFound(playlist_name.to_string()))?
 			};
 			let pid = playlist.id;
 
@@ -227,9 +262,15 @@ impl Manager {
 		log::error!("missing_songs {:?}", missing_songs);
 		log::error!("songs {:?}", songs);
 		log::error!("paths{:?}", song_paths);
+		Ok(missing_songs)
+	}
+
+	pub fn read_playlist(&self, playlist_name: &str, owner: &str) -> Result<Vec<Song>, Error> {
+		let vfs = self.vfs_manager.get_vfs()?;
+		let songs = self.read_playlist_real(playlist_name, owner)?;
 
 		// Map real path to virtual paths
-		let virtual_songs = missing_songs
+		let virtual_songs = songs
 			.into_iter()
 			.filter_map(|s| s.virtualize(&vfs))
 			.collect();
@@ -258,10 +299,15 @@ impl Manager {
 				.execute(&connection)
 				.map_err(anyhow::Error::new)?
 			{
-				0 => Err(Error::PlaylistNotFound),
+				0 => Err(Error::PlaylistNotFound(playlist_name.to_string())),
 				_ => Ok(()),
 			}
 		}
+	}
+
+	pub fn export_playlist(&self, username: &str, export: PlaylistExport) -> Result<String, Error> {
+		let songs = self.read_playlist_real(&export.name, username)?;
+		create_m3u_playlist(&songs)
 	}
 }
 
@@ -297,4 +343,123 @@ struct NewPlaylistSong {
 #[derive(Identifiable, Queryable)]
 struct User {
 	id: i32,
+}
+
+fn get_common_path(songs: &[Song]) -> Option<OsString> {
+	if songs.len() < 2 {
+		return None;
+	}
+	let mut common_path = PathBuf::from(&songs.get(0).unwrap().path);
+	for song in &songs[1..] {
+		let next_path = Path::new(&song.path);
+		let iter = common_path.iter().zip(next_path.iter());
+		let mut temp = PathBuf::new();
+		for (c, n) in iter {
+			if c == n {
+				temp.push(c);
+			} else {
+				break;
+			}
+		}
+		common_path = temp;
+		if common_path.as_os_str().is_empty() {
+			return None;
+		}
+	}
+	let mut path = common_path.into_os_string();
+	path.push(OsStr::new(&MAIN_SEPARATOR.to_string()));
+	Some(path)
+}
+
+// Returns (common_path, buffer with with list of files).
+pub(crate) fn strip_base_path(songs: &[Song]) -> (String, String) {
+	let base_path = get_common_path(songs)
+		.unwrap_or_else(|| OsString::from(""))
+		.to_string_lossy()
+		.to_string();
+	let mut buffer = String::new();
+
+	for song in songs {
+		writeln!(
+			&mut buffer,
+			"{}",
+			song.path.strip_prefix(&base_path).unwrap()
+		)
+		.unwrap();
+	}
+	(base_path, buffer)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_no_songs() {
+		assert_eq!(strip_base_path(&[]), ("".to_string(), "".to_string()));
+	}
+
+	#[test]
+	fn test_single_song() {
+		assert_eq!(
+			strip_base_path(&[Song::test_only_from_path("abc/def")]),
+			("".to_string(), "abc/def\n".to_string())
+		);
+	}
+
+	#[test]
+	fn test_unique_paths() {
+		assert_eq!(
+			strip_base_path(&[
+				Song::test_only_from_path("abc/def"),
+				Song::test_only_from_path("def/ghi")
+			]),
+			("".to_string(), "abc/def\ndef/ghi\n".to_string())
+		);
+	}
+
+	#[test]
+	fn test_unique_paths_common_files() {
+		assert_eq!(
+			strip_base_path(&[
+				Song::test_only_from_path("abc/def"),
+				Song::test_only_from_path("def/def")
+			]),
+			("".to_string(), "abc/def\ndef/def\n".to_string())
+		);
+	}
+
+	#[test]
+	fn test_few_chars_common() {
+		assert_eq!(
+			strip_base_path(&[
+				Song::test_only_from_path("abc/def"),
+				Song::test_only_from_path("abf/ghi")
+			]),
+			("".to_string(), "abc/def\nabf/ghi\n".to_string())
+		);
+	}
+
+	#[test]
+	fn test_single_directory_common() {
+		assert_eq!(
+			strip_base_path(&[
+				Song::test_only_from_path("abc/def"),
+				Song::test_only_from_path("abc/ghi")
+			]),
+			("abc/".to_string(), "def\nghi\n".to_string())
+		);
+	}
+
+	#[test]
+	fn test_few_directories_common() {
+		assert_eq!(
+			strip_base_path(&[
+				Song::test_only_from_path("a/bc/d/ef"),
+				Song::test_only_from_path("a/bc/g/hi"),
+				Song::test_only_from_path("a/bc/j/kl")
+			]),
+			("a/bc/".to_string(), "d/ef\ng/hi\nj/kl\n".to_string())
+		);
+	}
 }

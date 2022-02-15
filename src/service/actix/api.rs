@@ -63,6 +63,8 @@ pub fn make_config() -> impl FnOnce(&mut ServiceConfig) + Clone {
 			.service(save_playlist)
 			.service(read_playlist)
 			.service(delete_playlist)
+			.service(export_playlist_m3u)
+			.service(import_playlist_m3u)
 			.service(lastfm_now_playing)
 			.service(lastfm_scrobble)
 			.service(lastfm_link_token)
@@ -90,7 +92,7 @@ impl ResponseError for APIError {
 			APIError::LastFMLinkContentBase64DecodeError => StatusCode::BAD_REQUEST,
 			APIError::LastFMLinkContentEncodingError => StatusCode::BAD_REQUEST,
 			APIError::UserNotFound => StatusCode::NOT_FOUND,
-			APIError::PlaylistNotFound => StatusCode::NOT_FOUND,
+			APIError::PlaylistNotFound(_) => StatusCode::NOT_FOUND,
 			APIError::VFSPathNotFound => StatusCode::NOT_FOUND,
 			APIError::Unspecified => StatusCode::INTERNAL_SERVER_ERROR,
 		}
@@ -782,6 +784,42 @@ async fn read_playlist(
 ) -> Result<Json<Vec<index::Song>>, APIError> {
 	let songs = block(move || playlist_manager.read_playlist(&name, &auth.username)).await?;
 	Ok(Json(songs))
+}
+
+#[get("/exchange/playlist")]
+async fn export_playlist_m3u(
+	playlist_manager: Data<playlist::Manager>,
+	auth: Auth,
+	exchange: web::Query<playlist::PlaylistExport>,
+) -> Result<HttpResponse, APIError> {
+	let download_file_name = format!("{:?}.m3u", exchange.name);
+	let buffer: String =
+		block(move || playlist_manager.export_playlist(&auth.username, exchange.into_inner()))
+			.await?;
+	Ok(HttpResponse::Ok()
+		.content_type("application/force-download")
+		.set_header(
+			"Content-Disposition",
+			format!("attachment; filename=\"{}\"", download_file_name),
+		)
+		.body(buffer))
+}
+
+#[put("/exchange/playlist")]
+async fn import_playlist_m3u(
+	_playlist_manager: Data<playlist::Manager>,
+	_auth: Auth,
+	exchange: web::Query<playlist::PlaylistImport>,
+	// playlist: Json<dto::SavePlaylistInput>,
+	_playlist: String,
+) -> Result<HttpResponse, APIError> {
+	Ok(HttpResponse::Ok()
+		.content_type("application/force-download")
+		.set_header(
+			"Content-Disposition",
+			format!("attachment; filename=\"{}\"", exchange.name),
+		)
+		.body("hello world"))
 }
 
 #[delete("/playlist/{name}")]

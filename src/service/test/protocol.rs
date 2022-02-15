@@ -271,6 +271,19 @@ pub fn delete_playlist(name: &str) -> Request<()> {
 		.unwrap()
 }
 
+pub fn export_playlist(name: &str, kind: &str) -> Request<()> {
+	let endpoint = format!(
+		"/api/exchange/playlist?name={}&kind={}",
+		url_encode(name),
+		url_encode(kind)
+	);
+	Request::builder()
+		.method(Method::GET)
+		.uri(&endpoint)
+		.body(())
+		.unwrap()
+}
+
 pub fn lastfm_link_token() -> Request<()> {
 	Request::builder()
 		.method(Method::GET)

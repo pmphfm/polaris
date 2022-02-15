@@ -77,7 +77,7 @@ pub struct ListPlaylistsEntry {
 	pub name: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavePlaylistInput {
 	pub tracks: Vec<String>,
 }

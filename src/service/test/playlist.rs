@@ -132,3 +132,32 @@ fn delete_playlist_bad_name_returns_not_found() {
 	let response = service.fetch(&request);
 	assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+#[test]
+fn export_playlist() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login();
+
+	{
+		let my_playlist = dto::SavePlaylistInput { tracks: Vec::new() };
+		let request = protocol::save_playlist(TEST_PLAYLIST_NAME, my_playlist);
+		let response = service.fetch(&request);
+		assert_eq!(response.status(), StatusCode::OK);
+	}
+
+	let request = protocol::export_playlist(TEST_PLAYLIST_NAME, "m3u");
+	let response = service.fetch(&request);
+	assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test]
+fn export_playlist_not_found() {
+	let mut service = ServiceType::new(&test_name!());
+	service.complete_initial_setup();
+	service.login();
+
+	let request = protocol::export_playlist(TEST_PLAYLIST_NAME, "m3u");
+	let response = service.fetch(&request);
+	assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}

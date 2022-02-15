@@ -29,6 +29,10 @@
             "description": "Managing playlists"
         },
         {
+            "name": "ExportPlaylists",
+            "description": "Export playlists"
+        },
+        {
             "name": "Users",
             "description": "Managing user accounts"
         },
@@ -1154,6 +1158,130 @@
                 ]
             }
         },
+        "/exchange/playlist": {
+            "get": {
+                "tags": [
+                    "ExportPlaylists"
+                ],
+                "summary": "Exports content of a playlist as m3u",
+                "operationId": "exportPlaylistM3u",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": true,
+                        "description": "Playlist name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "kind",
+                        "in": "query",
+                        "description": "Playlist type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "m3u"
+                            ],
+                            "default": "m3u"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "text/m3u": {
+                                "description": "The same content originally present in the 'content' parameter",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "auth_http_basic": [],
+                        "auth_http_bearer": [],
+                        "auth_query_parameter": [],
+                        "auth_cookie": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "ExportPlaylists"
+                ],
+                "summary": "Imports a playlist",
+                "operationId": "putPlaylist",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": true,
+                        "description": "Playlist name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "kind",
+                        "in": "query",
+                        "description": "Playlist type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "m3u"
+                            ],
+                            "default": "m3u"
+                        }
+                    },
+                    {
+                        "name": "partial",
+                        "in": "query",
+                        "description": "Playlist is created even when only a part of the songs match.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    },
+                    {
+                        "name": "fuzzy_match",
+                        "in": "query",
+                        "description": "Song paths are fuzzy matched when exact path if not matched.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/text": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavePlaylistInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "auth_http_basic": [],
+                        "auth_http_bearer": [],
+                        "auth_query_parameter": [],
+                        "auth_cookie": []
+                    }
+                ]
+            }
+        },
         "/lastfm/now_playing/{song}": {
             "put": {
                 "tags": [
@@ -1699,7 +1827,7 @@
                     "voice_model",
                     "language"
                 ]
-            },
+            }
         },
         "securitySchemes": {
             "auth_http_bearer": {

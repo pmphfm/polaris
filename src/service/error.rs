@@ -29,8 +29,8 @@ pub enum APIError {
 	VFSPathNotFound,
 	#[error("User not found")]
 	UserNotFound,
-	#[error("Playlist not found")]
-	PlaylistNotFound,
+	#[error("Playlist not found:{0}")]
+	PlaylistNotFound(String),
 	#[error("Unspecified")]
 	Unspecified,
 }
@@ -52,7 +52,7 @@ impl From<config::Error> for APIError {
 impl From<playlist::Error> for APIError {
 	fn from(error: playlist::Error) -> APIError {
 		match error {
-			playlist::Error::PlaylistNotFound => APIError::PlaylistNotFound,
+			playlist::Error::PlaylistNotFound(name) => APIError::PlaylistNotFound(name),
 			playlist::Error::UserNotFound => APIError::UserNotFound,
 			playlist::Error::Unspecified => APIError::Unspecified,
 		}

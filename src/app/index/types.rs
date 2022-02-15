@@ -68,6 +68,28 @@ impl Song {
 			label: None,
 		}
 	}
+
+	#[cfg(test)]
+	pub fn test_only_from_path(path: &str) -> Self {
+		Song {
+			id: 0,
+			path: path.to_string(),
+			parent: "".to_string(),
+			track_number: None,
+			disc_number: None,
+			title: None,
+			artist: None,
+			album_artist: None,
+			year: None,
+			album: None,
+			artwork: None,
+			duration: None,
+			lyricist: None,
+			composer: None,
+			genre: None,
+			label: None,
+		}
+	}
 }
 
 #[derive(Debug, PartialEq, Queryable, Serialize, Deserialize)]

@@ -2,8 +2,8 @@
 pub enum Error {
 	#[error("User not found")]
 	UserNotFound,
-	#[error("Playlist not found")]
-	PlaylistNotFound,
+	#[error("Playlist not found: {0}")]
+	PlaylistNotFound(String),
 	#[error("Unspecified")]
 	Unspecified,
 }
