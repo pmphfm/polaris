@@ -1,14 +1,13 @@
 use anyhow::Result;
 use core::clone::Clone;
 use diesel::prelude::*;
-use diesel::sql_types;
 use diesel::BelongingToDsl;
 use std::path::Path;
 
 use super::*;
 use crate::app::index::Song;
 use crate::app::vfs;
-use crate::db::{playlist_songs, playlists, users, DB};
+use crate::db::{playlist_songs, playlists, songs, users, DB};
 
 #[derive(Clone)]
 pub struct Manager {
@@ -132,6 +131,7 @@ impl Manager {
 	pub fn read_playlist(&self, playlist_name: &str, owner: &str) -> Result<Vec<Song>, Error> {
 		let vfs = self.vfs_manager.get_vfs()?;
 		let songs: Vec<Song>;
+		let song_paths: Vec<String>;
 
 		{
 			let connection = self.db.connect()?;
@@ -159,23 +159,77 @@ impl Manager {
 					.map_err(anyhow::Error::new)?
 					.ok_or(Error::PlaylistNotFound)?
 			};
+			let pid = playlist.id;
+
+			song_paths = {
+				use self::playlist_songs::dsl::*;
+				playlist_songs
+					.filter(playlist.eq(pid))
+					.select(path)
+					.order_by(ordering)
+					.get_results(&connection)
+					.map_err(anyhow::Error::new)?
+			};
+
+			songs = {
+				use self::playlist_songs::dsl::{path as playlist_path, *};
+				use self::songs::dsl::{id, path, *};
+				playlist_songs
+					.inner_join(songs.on(path.eq(playlist_path)))
+					.select((
+						id,
+						path,
+						parent,
+						track_number,
+						disc_number,
+						title,
+						artist,
+						album_artist,
+						year,
+						album,
+						artwork,
+						duration,
+						lyricist,
+						composer,
+						genre,
+						label,
+					))
+					.get_results(&connection)
+					.map_err(anyhow::Error::new)?
+			};
 
 			// Select songs. Not using Diesel because we need to LEFT JOIN using a custom column
-			let query = diesel::sql_query(
-				r#"
-			SELECT s.id, s.path, s.parent, s.track_number, s.disc_number, s.title, s.artist, s.album_artist, s.year, s.album, s.artwork, s.duration, s.lyricist, s.composer, s.genre, s.label
-			FROM playlist_songs ps
-			LEFT JOIN songs s ON ps.path = s.path
-			WHERE ps.playlist = ?
-			ORDER BY ps.ordering
-		"#,
-			);
-			let query = query.bind::<sql_types::Integer, _>(playlist.id);
-			songs = query.get_results(&connection).map_err(anyhow::Error::new)?;
+			// 	let query = diesel::sql_query(
+			// 		r#"
+			// 	SELECT s.id, s.path, s.parent, s.track_number, s.disc_number, s.title, s.artist, s.album_artist, s.year, s.album, s.artwork, s.duration, s.lyricist, s.composer, s.genre, s.label
+			// 	FROM playlist_songs ps
+			// 	JOIN songs s ON ps.path = s.path
+			// 	WHERE ps.playlist = ?
+			// 	ORDER BY ps.ordering
+			// "#,
+			// 	);
+			// 	let query = query.bind::<sql_types::Integer, _>(playlist.id);
+			// 	songs = query.get_results(&connection).map_err(anyhow::Error::new)?;
 		}
 
+		let mut map = std::collections::HashMap::new();
+		for (index, song) in songs.iter().enumerate() {
+			map.insert(&song.path, index);
+		}
+		let mut missing_songs = Vec::new();
+		for path in &song_paths {
+			missing_songs.push(match map.get(path) {
+				Some(index) => songs[*index].clone(),
+				None => Song::error_song(path),
+			});
+		}
+
+		log::error!("missing_songs {:?}", missing_songs);
+		log::error!("songs {:?}", songs);
+		log::error!("paths{:?}", song_paths);
+
 		// Map real path to virtual paths
-		let virtual_songs = songs
+		let virtual_songs = missing_songs
 			.into_iter()
 			.filter_map(|s| s.virtualize(&vfs))
 			.collect();

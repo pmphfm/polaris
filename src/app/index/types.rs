@@ -10,7 +10,7 @@ pub enum CollectionFile {
 	Song(Song),
 }
 
-#[derive(Debug, PartialEq, Queryable, QueryableByName, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Queryable, QueryableByName, Serialize, Deserialize, Clone)]
 #[table_name = "songs"]
 pub struct Song {
 	#[serde(skip_serializing, skip_deserializing)]
@@ -46,6 +46,27 @@ impl Song {
 			};
 		}
 		Some(self)
+	}
+
+	pub fn error_song(path: &str) -> Self {
+		Song {
+			id: 0,
+			path: path.to_string(),
+			parent: path.to_string(),
+			track_number: None,
+			disc_number: None,
+			title: Some(format!("error {}", path)),
+			artist: Some("error artist".to_string()),
+			album_artist: None,
+			year: None,
+			album: Some("error album".to_string()),
+			artwork: None,
+			duration: None,
+			lyricist: None,
+			composer: None,
+			genre: None,
+			label: None,
+		}
 	}
 }
 
