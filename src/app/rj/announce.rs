@@ -1,4 +1,3 @@
-use anyhow::*;
 use std::path::Path;
 
 use crate::app::{index, rj::error::ParseError};
