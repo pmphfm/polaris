@@ -1,14 +1,6 @@
-use anyhow::*;
 use std::path::Path;
 
 use crate::app::{index, rj::error::ParseError};
-
-#[derive(Debug, Default)]
-struct SongInfo {
-	prev: Option<index::Song>,
-	next: Option<index::Song>,
-	next_next: Option<index::Song>,
-}
 
 fn get_path_announcement(
 	index: &index::Index,

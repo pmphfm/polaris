@@ -1,4 +1,4 @@
-use anyhow::*;
+use anyhow::bail;
 use diesel::dsl::sql;
 use diesel::prelude::*;
 use diesel::sql_types;
@@ -238,7 +238,7 @@ impl Index {
 		Ok(virtual_songs.collect::<Vec<_>>())
 	}
 
-	pub fn get_random_albums(&self, count: i64) -> Result<Vec<Directory>> {
+	pub fn get_random_albums(&self, count: i64) -> anyhow::Result<Vec<Directory>> {
 		use self::directories::dsl::*;
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
@@ -253,7 +253,7 @@ impl Index {
 		Ok(virtual_directories.collect::<Vec<_>>())
 	}
 
-	pub fn get_recent_albums(&self, count: i64) -> Result<Vec<Directory>> {
+	pub fn get_recent_albums(&self, count: i64) -> anyhow::Result<Vec<Directory>> {
 		use self::directories::dsl::*;
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
@@ -268,7 +268,7 @@ impl Index {
 		Ok(virtual_directories.collect::<Vec<_>>())
 	}
 
-	fn generic_search(&self, query: &str) -> Result<Vec<CollectionFile>> {
+	fn generic_search(&self, query: &str) -> anyhow::Result<Vec<CollectionFile>> {
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
 		let like_test = format!("%{}%", query);
@@ -314,7 +314,7 @@ impl Index {
 		Ok(output)
 	}
 
-	fn field_search(&self, fields: &QueryFields) -> Result<Vec<CollectionFile>> {
+	fn field_search(&self, fields: &QueryFields) -> anyhow::Result<Vec<CollectionFile>> {
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
 		let mut output = Vec::new();
@@ -365,7 +365,7 @@ impl Index {
 		Ok(output)
 	}
 
-	pub fn search(&self, query: &str) -> Result<Vec<CollectionFile>> {
+	pub fn search(&self, query: &str) -> anyhow::Result<Vec<CollectionFile>> {
 		let parsed_query = parse_query(query);
 		let tmp = QueryFields {
 			general_query: Some(parsed_query.general_query.as_ref().unwrap().to_string()),
@@ -377,7 +377,7 @@ impl Index {
 		self.field_search(&parsed_query)
 	}
 
-	pub fn get_song(&self, virtual_path: &Path) -> Result<Song> {
+	pub fn get_song(&self, virtual_path: &Path) -> anyhow::Result<Song> {
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
 
