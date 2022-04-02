@@ -7,6 +7,21 @@ use crate::test_name;
 
 const TEST_ALL_SONGS_COUNT: usize = 13;
 
+// Results returned by query can be in a random order. This function returns true if the title
+// is found in results.
+fn result_has_title(results: &Vec<index::CollectionFile>, title: &str) -> bool {
+	results
+		.iter()
+		.find(|k| match k {
+			index::CollectionFile::Song(ref s) => {
+				let x = s.title.as_ref().unwrap();
+				x == title
+			}
+			_ => return false,
+		})
+		.is_some()
+}
+
 #[test]
 fn browse_requires_auth() {
 	let mut service = ServiceType::new(&test_name!());
@@ -217,12 +232,7 @@ fn search_with_query() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 1);
-	match results[0] {
-		index::CollectionFile::Song(ref s) => {
-			assert_eq!(s.title, Some("Beyond The Door".into()))
-		}
-		_ => panic!(),
-	}
+	assert!(result_has_title(results, "Beyond The Door"));
 }
 
 #[test]
@@ -237,12 +247,7 @@ fn search_extended_tags() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 8);
-	match results[0] {
-		index::CollectionFile::Song(ref s) => {
-			assert_eq!(s.title, Some("ピクニック (Picnic) (Remix)".into()))
-		}
-		_ => panic!(),
-	}
+	assert!(result_has_title(results, "ピクニック (Picnic) (Remix)"));
 }
 
 #[test]
@@ -257,12 +262,7 @@ fn search_with_query_one_field() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 1);
-	match results[0] {
-		index::CollectionFile::Song(ref s) => {
-			assert_eq!(s.title, Some("ピクニック (Picnic) (Remix)".into()))
-		}
-		_ => panic!(),
-	}
+	assert!(result_has_title(results, "ピクニック (Picnic) (Remix)"));
 }
 
 #[test]
@@ -277,15 +277,10 @@ fn search_with_query_multiple_fields() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 1);
-	match results[0] {
-		index::CollectionFile::Song(ref s) => {
-			assert_eq!(
-				s.title,
-				Some("疲れた顔(ゲームは終わらない) (Tired Face (The Game Never Ends))".into())
-			)
-		}
-		_ => panic!(),
-	}
+	assert!(result_has_title(
+		results,
+		"疲れた顔(ゲームは終わらない) (Tired Face (The Game Never Ends))"
+	));
 }
 
 #[test]
@@ -300,16 +295,7 @@ fn search_with_query_one_year() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 13);
-	assert!(results
-		.iter()
-		.find(|k| match k {
-			index::CollectionFile::Song(ref s) => {
-				let x = s.title.as_ref().unwrap();
-				x == "ピクニック (Picnic) (Remix)"
-			}
-			_ => panic!(),
-		})
-		.is_some());
+	assert!(result_has_title(results, "ピクニック (Picnic) (Remix)"));
 }
 
 #[test]
@@ -324,14 +310,5 @@ fn search_with_query_year_range() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 13);
-	assert!(results
-		.iter()
-		.find(|k| match k {
-			index::CollectionFile::Song(ref s) => {
-				let x = s.title.as_ref().unwrap();
-				x == "ピクニック (Picnic) (Remix)"
-			}
-			_ => panic!(),
-		})
-		.is_some());
+	assert!(result_has_title(results, "ピクニック (Picnic) (Remix)"));
 }
