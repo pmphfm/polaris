@@ -405,7 +405,7 @@ impl Responder for MediaFile {
 			// 2. The Content-Length header is incompatible with content encoding (other than identity), and can be valuable for clients
 			r.encoding(ContentEncoding::Identity);
 		}
-		return ready(response);
+		ready(response)
 	}
 }
 
@@ -490,11 +490,7 @@ async fn put_mount_dirs(
 	vfs_manager: Data<vfs::Manager>,
 	new_mount_dirs: Json<Vec<dto::MountDir>>,
 ) -> Result<HttpResponse, APIError> {
-	let new_mount_dirs: Vec<MountDir> = new_mount_dirs
-		.to_owned()
-		.into_iter()
-		.map(|m| m.into())
-		.collect();
+	let new_mount_dirs: Vec<MountDir> = new_mount_dirs.iter().cloned().map(|m| m.into()).collect();
 	block(move || vfs_manager.set_mount_dirs(&new_mount_dirs)).await?;
 	Ok(HttpResponse::new(StatusCode::OK))
 }

@@ -300,12 +300,16 @@ fn search_with_query_one_year() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 13);
-	match results[0] {
-		index::CollectionFile::Song(ref s) => {
-			assert_eq!(s.title, Some("ピクニック (Picnic) (Remix)".into()))
-		}
-		_ => panic!(),
-	}
+	assert!(results
+		.iter()
+		.find(|k| match k {
+			index::CollectionFile::Song(ref s) => {
+				let x = s.title.as_ref().unwrap();
+				x == "ピクニック (Picnic) (Remix)"
+			}
+			_ => panic!(),
+		})
+		.is_some());
 }
 
 #[test]
@@ -320,10 +324,14 @@ fn search_with_query_year_range() {
 	let response = service.fetch_json::<_, Vec<index::CollectionFile>>(&request);
 	let results = response.body();
 	assert_eq!(results.len(), 13);
-	match results[0] {
-		index::CollectionFile::Song(ref s) => {
-			assert_eq!(s.title, Some("ピクニック (Picnic) (Remix)".into()))
-		}
-		_ => panic!(),
-	}
+	assert!(results
+		.iter()
+		.find(|k| match k {
+			index::CollectionFile::Song(ref s) => {
+				let x = s.title.as_ref().unwrap();
+				x == "ピクニック (Picnic) (Remix)"
+			}
+			_ => panic!(),
+		})
+		.is_some());
 }
