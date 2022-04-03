@@ -26,6 +26,7 @@ pub struct App {
 	pub auth_secret: settings::AuthSecret,
 	pub web_dir_path: PathBuf,
 	pub swagger_dir_path: PathBuf,
+	pub user_guide_path: PathBuf,
 	pub db: DB,
 	pub index: index::Index,
 	pub config_manager: config::Manager,
@@ -43,6 +44,7 @@ impl App {
 		let db = DB::new(&paths.db_file_path)?;
 		fs::create_dir_all(&paths.web_dir_path)?;
 		fs::create_dir_all(&paths.swagger_dir_path)?;
+		fs::create_dir_all(&paths.user_guide_path)?;
 
 		let thumbnails_dir_path = paths.cache_dir_path.join("thumbnails");
 
@@ -85,6 +87,7 @@ impl App {
 			auth_secret,
 			web_dir_path: paths.web_dir_path,
 			swagger_dir_path: paths.swagger_dir_path,
+			user_guide_path: paths.user_guide_path,
 			index,
 			config_manager,
 			ddns_manager,

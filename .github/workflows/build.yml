@@ -24,6 +24,9 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
+    - uses: peaceiris/actions-mdbook@v1
+      with:
+        mdbook-version: '0.4.10'
     - uses: actions-rs/cargo@v1
       with:
         command: test

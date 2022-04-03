@@ -27,6 +27,7 @@ configuration parameters.
 
 1. Install OpenSSL, SQLite and their headers, and some development tools. These are available from your distribution's package manager. For instance on Ubuntu, execute `sudo apt-get install binutils pkg-config libssl-dev`
 2. Install the Rust compiler by executing `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or using an [alternative method](https://www.rust-lang.org/en-US/install.html)
+3. Install other dependencies with `cargo install mdbook sccache`
 
 #### Polaris installation
 1. Download the [latest release]((https://github.com/agersant/polaris/releases/latest)) of Polaris (you want the .tar.gz file)

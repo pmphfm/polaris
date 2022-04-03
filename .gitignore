@@ -16,3 +16,6 @@ polaris.pid
 # Release process artifacts (usually runs on CI)
 release
 *.res
+
+# User guide related files
+docs/user-guide

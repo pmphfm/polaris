@@ -11,6 +11,7 @@ pub struct Paths {
 	pub pid_file_path: PathBuf,
 	pub swagger_dir_path: PathBuf,
 	pub web_dir_path: PathBuf,
+	pub user_guide_path: PathBuf,
 }
 
 // TODO Make this the only implementation when we can expand %LOCALAPPDATA% correctly on Windows
@@ -26,6 +27,7 @@ impl Default for Paths {
 			pid_file_path: [".", "polaris.pid"].iter().collect(),
 			swagger_dir_path: [".", "docs", "swagger"].iter().collect(),
 			web_dir_path: [".", "web"].iter().collect(),
+			user_guide_path: [".", "docs", "user-guide", "book"].iter().collect(),
 		}
 	}
 }
@@ -43,6 +45,7 @@ impl Default for Paths {
 			log_file_path: Some(install_directory.join("polaris.log")),
 			swagger_dir_path: install_directory.join("swagger"),
 			web_dir_path: install_directory.join("web"),
+			user_guide_path: install_directory.join("user-guide"),
 		}
 	}
 }
@@ -74,6 +77,9 @@ impl Paths {
 			web_dir_path: option_env!("POLARIS_WEB_DIR")
 				.map(PathBuf::from)
 				.unwrap_or(defaults.web_dir_path),
+			user_guide_path: option_env!("POLARIS_USER_GUIDE_DIR")
+				.map(PathBuf::from)
+				.unwrap_or(defaults.user_guide_path),
 		}
 	}
 
@@ -97,6 +103,9 @@ impl Paths {
 		}
 		if let Some(path) = &cli_options.web_dir_path {
 			paths.web_dir_path = path.clone();
+		}
+		if let Some(path) = &cli_options.user_guide_path {
+			paths.user_guide_path = path.clone();
 		}
 
 		let log_to_file = cli_options.log_file_path.is_some() || !cli_options.foreground;

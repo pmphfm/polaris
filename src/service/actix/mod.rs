@@ -39,6 +39,11 @@ pub fn make_config(app: App) -> impl FnOnce(&mut ServiceConfig) + Clone {
 					.index_file("index.html"),
 			)
 			.service(
+				actix_files::Files::new("/help", app.user_guide_path)
+					.redirect_to_slash_directory()
+					.show_files_listing(),
+			)
+			.service(
 				actix_files::Files::new("/", app.web_dir_path)
 					.redirect_to_slash_directory()
 					.index_file("index.html"),

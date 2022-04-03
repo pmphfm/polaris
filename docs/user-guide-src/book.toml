@@ -1,0 +1,6 @@
+[book]
+authors = ["Pmp Hfm"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Polaris User Guide"
