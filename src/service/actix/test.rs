@@ -88,6 +88,7 @@ impl TestService for ActixTestService {
 			log_file_path: None,
 			swagger_dir_path: ["docs", "swagger"].iter().collect(),
 			web_dir_path: ["test-data", "web"].iter().collect(),
+			user_guide_path: ["docs", "user_guide"].iter().collect(),
 		};
 
 		let app = App::new(5050, paths).unwrap();

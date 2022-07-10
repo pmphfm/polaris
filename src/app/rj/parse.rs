@@ -281,7 +281,7 @@ impl AnnouncementOptions {
 	}
 
 	fn uses_reserved_name(&self) -> Result<(), Error> {
-		let _ = Self::uses_reserved_name_internal(&self.neutral)?;
+		Self::uses_reserved_name_internal(&self.neutral)?;
 		Self::uses_reserved_name_internal(&self.tense)
 	}
 
@@ -378,8 +378,7 @@ impl AnnouncementOptions {
 				for tmp_fragment in tmp_field.fragments.keys() {
 					for (map_name, map_field) in &mut self.neutral {
 						if map_name != tmp_name {
-							let _ = map_field
-								.replace_and_keep(&tmp_field.delimited_name, tmp_fragment)?;
+							map_field.replace_and_keep(&tmp_field.delimited_name, tmp_fragment)?;
 						}
 					}
 				}
@@ -412,7 +411,7 @@ impl AnnouncementOptions {
 		let mut tmp_past = vec![];
 		let mut tmp_present = vec![];
 		let mut used = vec![];
-		let _ = self.iterate_all_fragments(
+		self.iterate_all_fragments(
 			&mut |name: &str, _field: &Field, fragment: &str| -> (bool, Result<(), Error>) {
 				let mut past_fragment = fragment.to_string();
 				let mut present_fragment = fragment.to_string();
@@ -500,7 +499,7 @@ impl AnnouncementOptions {
 
 	fn remove_unresolved(&mut self, depth: usize) -> Result<(), Error> {
 		let mut to_remove = vec![];
-		let _ = self.iterate_all_words(
+		self.iterate_all_words(
 			&mut |name, field: &Field, fragment: &str, word: &str| {
 				if is_field_name(word).unwrap() && !is_reserved(&strip_delimiters(word)) {
 					if !field.fragments.get(fragment).unwrap() {
@@ -562,16 +561,16 @@ impl AnnouncementOptions {
 				.clone(),
 			conjunctions: user_opts.conjunctions.as_ref().unwrap_or(&vec![]).clone(),
 		};
-		let _ = opts.build_map(user_opts)?;
-		let _ = opts.has_self_dependency()?;
-		let _ = opts.uses_reserved_name()?;
-		let _ = opts.has_delimiter_only_at_start_end()?;
-		let _ = opts.verify_missing_name()?;
-		let _ = opts.deflate(depth_limit)?;
-		let _ = opts.deflate_tense()?;
-		let _ = opts.each_field_is_resolved_once(depth_limit)?;
-		let _ = opts.remove_unresolved(depth_limit)?;
-		let _ = opts.conjunctions_have_no_delimiter()?;
+		opts.build_map(user_opts)?;
+		opts.has_self_dependency()?;
+		opts.uses_reserved_name()?;
+		opts.has_delimiter_only_at_start_end()?;
+		opts.verify_missing_name()?;
+		opts.deflate(depth_limit)?;
+		opts.deflate_tense()?;
+		opts.each_field_is_resolved_once(depth_limit)?;
+		opts.remove_unresolved(depth_limit)?;
+		opts.conjunctions_have_no_delimiter()?;
 		Ok(opts)
 	}
 
