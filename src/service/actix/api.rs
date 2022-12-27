@@ -811,9 +811,7 @@ async fn import_playlist_m3u(
 		.content_type("application/force-download")
 		.insert_header(ContentDisposition {
 			disposition: DispositionType::Attachment,
-			parameters: vec![DispositionParam::Filename(String::from(
-				exchange.name.clone(),
-			))],
+			parameters: vec![DispositionParam::Filename(exchange.name.clone())],
 		})
 		.body("hello world"))
 }
@@ -941,10 +939,7 @@ async fn get_announcement(
 	_auth: Auth,
 	announce: web::Query<index::RjRequest>,
 ) -> HttpResponse {
-	let res = my_block(move || {
-		rj::get_announcement(index.as_ref(), announce.into_inner()).map_err(|op| op)
-	})
-	.await;
+	let res = my_block(move || rj::get_announcement(index.as_ref(), announce.into_inner())).await;
 	if res.is_err() {
 		return make_error_response(res.expect_err("Memory corruption").to_string());
 	}
@@ -969,9 +964,7 @@ fn update_user_settings(
 	new_settings: Json<rj::UserSettings>,
 ) -> Result<(), APIError> {
 	let mut rj_manager = index.rj_manager.write().unwrap();
-	let to_restore = rj_manager
-		.update_user_settings(new_settings.to_owned())
-		.map_err(|err| err)?;
+	let to_restore = rj_manager.update_user_settings(new_settings.to_owned())?;
 	settings_manager
 		.put_rj_user_settings(&new_settings.to_owned())
 		.map_err(|op| {

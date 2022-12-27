@@ -41,8 +41,7 @@ fn parse_token(query: &str, token: &str) -> (Option<String>, String) {
 	};
 	let artist = "%".to_string()
 		+ splits[0][t.start()..t.end()]
-			.replace('\'', "")
-			.replace('"', "")
+			.replace(['\'', '"'], "")
 			.trim() + "%";
 	let rest = splits[0][t.end()..].trim();
 
@@ -213,7 +212,7 @@ impl Index {
 		let vfs = self.vfs_manager.get_vfs()?;
 		let connection = self.db.connect()?;
 
-		let real_songs: Vec<Song> = if virtual_path.as_ref().parent() != None {
+		let real_songs: Vec<Song> = if virtual_path.as_ref().parent().is_some() {
 			let real_path = vfs
 				.virtual_to_real(virtual_path)
 				.map_err(|_| QueryError::VFSPathNotFound)?;

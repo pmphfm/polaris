@@ -9,7 +9,7 @@ use std::path::Path;
 use crate::utils;
 use crate::utils::AudioFormat;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SongTags {
 	pub disc_number: Option<u32>,
 	pub track_number: Option<u32>,
@@ -37,7 +37,7 @@ impl From<id3::Tag> for SongTags {
 		let track_number = tag.track();
 		let year = tag
 			.year()
-			.map(|y| y as i32)
+			.map(|y| y)
 			.or_else(|| tag.date_released().map(|d| d.year))
 			.or_else(|| tag.date_recorded().map(|d| d.year));
 		let has_artwork = tag.pictures().count() > 0;
@@ -103,7 +103,7 @@ impl FrameContent for id3::Tag {
 }
 
 fn read_mp3(path: &Path) -> Result<SongTags> {
-	let tag = id3::Tag::read_from_path(&path).or_else(|error| {
+	let tag = id3::Tag::read_from_path(path).or_else(|error| {
 		if let Some(tag) = error.partial_tag {
 			Ok(tag)
 		} else {
@@ -112,7 +112,7 @@ fn read_mp3(path: &Path) -> Result<SongTags> {
 	})?;
 
 	let duration = {
-		mp3_duration::from_path(&path)
+		mp3_duration::from_path(path)
 			.map(|d| d.as_secs() as u32)
 			.ok()
 	};
@@ -123,7 +123,7 @@ fn read_mp3(path: &Path) -> Result<SongTags> {
 }
 
 fn read_aiff(path: &Path) -> Result<SongTags> {
-	let tag = id3::Tag::read_from_aiff_path(&path).or_else(|error| {
+	let tag = id3::Tag::read_from_aiff_path(path).or_else(|error| {
 		if let Some(tag) = error.partial_tag {
 			Ok(tag)
 		} else {
@@ -134,7 +134,7 @@ fn read_aiff(path: &Path) -> Result<SongTags> {
 }
 
 fn read_wave(path: &Path) -> Result<SongTags> {
-	let tag = id3::Tag::read_from_wav_path(&path).or_else(|error| {
+	let tag = id3::Tag::read_from_wav_path(path).or_else(|error| {
 		if let Some(tag) = error.partial_tag {
 			Ok(tag)
 		} else {
@@ -297,9 +297,7 @@ fn read_flac(path: &Path) -> Result<SongTags> {
 	let year = vorbis.get("DATE").and_then(|d| d[0].parse::<i32>().ok());
 	let mut streaminfo = tag.get_blocks(metaflac::BlockType::StreamInfo);
 	let duration = match streaminfo.next() {
-		Some(&metaflac::Block::StreamInfo(ref s)) => {
-			Some((s.total_samples as u32 / s.sample_rate) as u32)
-		}
+		Some(&metaflac::Block::StreamInfo(ref s)) => Some(s.total_samples as u32 / s.sample_rate),
 		_ => None,
 	};
 	let has_artwork = tag.pictures().count() > 0;
