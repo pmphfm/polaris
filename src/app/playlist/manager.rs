@@ -57,14 +57,14 @@ impl Manager {
 	}
 
 	pub fn list_playlists(&self, owner: &str) -> Result<Vec<String>, Error> {
-		let connection = self.db.connect()?;
+		let mut connection = self.db.connect()?;
 
 		let user: User = {
 			use self::users::dsl::*;
 			users
 				.filter(name.eq(owner))
 				.select((id,))
-				.first(&connection)
+				.first(&mut connection)
 				.optional()
 				.map_err(anyhow::Error::new)?
 				.ok_or(Error::UserNotFound)?
@@ -74,7 +74,7 @@ impl Manager {
 			use self::playlists::dsl::*;
 			let found_playlists: Vec<String> = Playlist::belonging_to(&user)
 				.select(name)
-				.load(&connection)
+				.load(&mut connection)
 				.map_err(anyhow::Error::new)?;
 			Ok(found_playlists)
 		}
@@ -91,7 +91,7 @@ impl Manager {
 		let vfs = self.vfs_manager.get_vfs()?;
 
 		{
-			let connection = self.db.connect()?;
+			let mut connection = self.db.connect()?;
 
 			// Find owner
 			let user: User = {
@@ -99,7 +99,7 @@ impl Manager {
 				users
 					.filter(name.eq(owner))
 					.select((id,))
-					.first(&connection)
+					.first(&mut connection)
 					.optional()
 					.map_err(anyhow::Error::new)?
 					.ok_or(Error::UserNotFound)?
@@ -113,7 +113,7 @@ impl Manager {
 
 			diesel::insert_into(playlists::table)
 				.values(&new_playlist)
-				.execute(&connection)
+				.execute(&mut connection)
 				.map_err(anyhow::Error::new)?;
 
 			playlist = {
@@ -121,7 +121,7 @@ impl Manager {
 				playlists
 					.select((id, owner))
 					.filter(name.eq(playlist_name).and(owner.eq(user.id)))
-					.get_result(&connection)
+					.get_result(&mut connection)
 					.map_err(anyhow::Error::new)?
 			}
 		}
@@ -145,17 +145,17 @@ impl Manager {
 		}
 
 		{
-			let connection = self.db.connect()?;
+			let mut connection = self.db.connect()?;
 			connection
-				.transaction::<_, diesel::result::Error, _>(|| {
+				.transaction::<_, diesel::result::Error, _>(|connection| {
 					// Delete old content (if any)
 					let old_songs = PlaylistSong::belonging_to(&playlist);
-					diesel::delete(old_songs).execute(&connection)?;
+					diesel::delete(old_songs).execute(connection)?;
 
 					// Insert content
 					diesel::insert_into(playlist_songs::table)
 						.values(&new_songs)
-						.execute(&*connection)?; // TODO https://github.com/diesel-rs/diesel/issues/1822
+						.execute(&mut *connection)?; // TODO https://github.com/diesel-rs/diesel/issues/1822
 					Ok(())
 				})
 				.map_err(anyhow::Error::new)?;
@@ -169,7 +169,7 @@ impl Manager {
 		let song_paths: Vec<String>;
 
 		{
-			let connection = self.db.connect()?;
+			let mut connection = self.db.connect()?;
 
 			// Find owner
 			let user: User = {
@@ -177,7 +177,7 @@ impl Manager {
 				users
 					.filter(name.eq(owner))
 					.select((id,))
-					.first(&connection)
+					.first(&mut connection)
 					.optional()
 					.map_err(anyhow::Error::new)?
 					.ok_or(Error::UserNotFound)?
@@ -189,7 +189,7 @@ impl Manager {
 				playlists
 					.select((id, owner))
 					.filter(name.eq(playlist_name).and(owner.eq(user.id)))
-					.get_result(&connection)
+					.get_result(&mut connection)
 					.optional()
 					.map_err(|_| Error::PlaylistNotFound(playlist_name.to_string()))?
 					.ok_or_else(|| Error::PlaylistNotFound(playlist_name.to_string()))?
@@ -202,7 +202,7 @@ impl Manager {
 					.filter(playlist.eq(pid))
 					.select(path)
 					.order_by(ordering)
-					.get_results(&connection)
+					.get_results(&mut connection)
 					.map_err(anyhow::Error::new)?
 			};
 
@@ -229,7 +229,7 @@ impl Manager {
 						genre,
 						label,
 					))
-					.get_results(&connection)
+					.get_results(&mut connection)
 					.map_err(anyhow::Error::new)?
 			};
 
@@ -279,14 +279,14 @@ impl Manager {
 	}
 
 	pub fn delete_playlist(&self, playlist_name: &str, owner: &str) -> Result<(), Error> {
-		let connection = self.db.connect()?;
+		let mut connection = self.db.connect()?;
 
 		let user: User = {
 			use self::users::dsl::*;
 			users
 				.filter(name.eq(owner))
 				.select((id,))
-				.first(&connection)
+				.first(&mut connection)
 				.optional()
 				.map_err(anyhow::Error::new)?
 				.ok_or(Error::UserNotFound)?
@@ -296,7 +296,7 @@ impl Manager {
 			use self::playlists::dsl::*;
 			let q = Playlist::belonging_to(&user).filter(name.eq(playlist_name));
 			match diesel::delete(q)
-				.execute(&connection)
+				.execute(&mut connection)
 				.map_err(anyhow::Error::new)?
 			{
 				0 => Err(Error::PlaylistNotFound(playlist_name.to_string())),
@@ -312,28 +312,28 @@ impl Manager {
 }
 
 #[derive(Identifiable, Queryable, Associations)]
-#[belongs_to(User, foreign_key = "owner")]
+#[diesel(belongs_to(User, foreign_key = owner))]
 struct Playlist {
 	id: i32,
 	owner: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations)]
-#[belongs_to(Playlist, foreign_key = "playlist")]
+#[diesel(belongs_to(Playlist, foreign_key = playlist))]
 struct PlaylistSong {
 	id: i32,
 	playlist: i32,
 }
 
 #[derive(Insertable)]
-#[table_name = "playlists"]
+#[diesel(table_name = playlists)]
 struct NewPlaylist {
 	name: String,
 	owner: i32,
 }
 
 #[derive(Insertable)]
-#[table_name = "playlist_songs"]
+#[diesel(table_name = playlist_songs)]
 struct NewPlaylistSong {
 	playlist: i32,
 	path: String,
