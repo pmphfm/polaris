@@ -5,12 +5,14 @@ use std::convert::TryInto;
 use std::time::Duration;
 
 use crate::app::rj::{AdminSettings, UserSettings};
-use crate::db::{misc_settings, DB};
+use crate::db::{self, misc_settings, DB};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
 	#[error("Missing auth secret")]
 	AuthSecretNotFound,
+	#[error(transparent)]
+	DatabaseConnection(#[from] db::Error),
 	#[error("Auth secret does not have the expected format")]
 	InvalidAuthSecret,
 	#[error("Missing settings")]
@@ -19,14 +21,8 @@ pub enum Error {
 	IndexAlbumArtPatternInvalid,
 	#[error(transparent)]
 	Database(#[from] diesel::result::Error),
-	#[error("Unspecified")]
-	Unspecified,
-}
-
-impl From<anyhow::Error> for Error {
-	fn from(_: anyhow::Error) -> Self {
-		Error::Unspecified
-	}
+	#[error("Error from settings")]
+	SettingsError,
 }
 
 #[derive(Clone, Default)]
@@ -127,8 +123,8 @@ impl Manager {
 				.select((scripts, enable_by_default, tts_people))
 				.get_result(&mut connection)
 				.map_err(|e| match e {
-					diesel::result::Error::NotFound => Error::Unspecified,
-					_ => Error::Unspecified,
+					diesel::result::Error::NotFound => Error::SettingsError,
+					_ => Error::SettingsError,
 				})?;
 
 		Ok(UserSettings {
@@ -145,8 +141,8 @@ impl Manager {
 			.select((tts_service_url, tts_text_param_key, tts_enable_ssml))
 			.get_result::<(Option<String>, Option<String>, i32)>(&mut connection)
 			.map_err(|e| match e {
-				diesel::result::Error::NotFound => Error::Unspecified,
-				_ => Error::Unspecified,
+				diesel::result::Error::NotFound => Error::SettingsError,
+				_ => Error::SettingsError,
 			})?;
 		Ok(AdminSettings {
 			tts_url: url,
@@ -163,21 +159,21 @@ impl Manager {
 			diesel::update(rj_user_settings::table)
 				.set(rj_user_settings::scripts.eq(user_script))
 				.execute(&mut connection)
-				.map_err(|_| Error::Unspecified)?;
+				.map_err(|_| Error::SettingsError)?;
 		}
 
 		if let Some(enable) = new_settings.enable_by_default {
 			diesel::update(rj_user_settings::table)
 				.set(rj_user_settings::enable_by_default.eq(enable as i32))
 				.execute(&mut connection)
-				.map_err(|_| Error::Unspecified)?;
+				.map_err(|_| Error::SettingsError)?;
 		}
 
 		let person_names = serde_json::to_string(&new_settings.tts_people).unwrap();
 		diesel::update(rj_user_settings::table)
 			.set(rj_user_settings::tts_people.eq(person_names))
 			.execute(&mut connection)
-			.map_err(|_| Error::Unspecified)?;
+			.map_err(|_| Error::SettingsError)?;
 		Ok(())
 	}
 
@@ -189,20 +185,20 @@ impl Manager {
 			diesel::update(rj_admin_settings::table)
 				.set(rj_admin_settings::tts_service_url.eq(url))
 				.execute(&mut connection)
-				.map_err(|_| Error::Unspecified)?;
+				.map_err(|_| Error::SettingsError)?;
 		}
 
 		if let Some(key) = &new_settings.tts_key {
 			diesel::update(rj_admin_settings::table)
 				.set(rj_admin_settings::tts_text_param_key.eq(key))
 				.execute(&mut connection)
-				.map_err(|_| Error::Unspecified)?;
+				.map_err(|_| Error::SettingsError)?;
 		}
 
 		diesel::update(rj_admin_settings::table)
 			.set(rj_admin_settings::tts_enable_ssml.eq(new_settings.enable_ssml as i32))
 			.execute(&mut connection)
-			.map_err(|_| Error::Unspecified)?;
+			.map_err(|_| Error::SettingsError)?;
 		Ok(())
 	}
 }
