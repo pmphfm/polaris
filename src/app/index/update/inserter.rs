@@ -1,6 +1,9 @@
 use crossbeam_channel::Receiver;
 use diesel::prelude::*;
 use log::error;
+use std::mem::take;
+use std::thread::spawn;
+use std::thread::JoinHandle;
 
 use crate::db::{directories, songs, DB};
 
@@ -48,6 +51,7 @@ pub struct Inserter {
 	new_directories: Vec<Directory>,
 	new_songs: Vec<Song>,
 	db: DB,
+	flush_thread: Option<JoinHandle<()>>,
 }
 
 impl Inserter {
@@ -59,6 +63,7 @@ impl Inserter {
 			new_directories,
 			new_songs,
 			db,
+			flush_thread: None,
 		}
 	}
 
@@ -68,57 +73,83 @@ impl Inserter {
 		}
 	}
 
+	fn wait_flush(&mut self) {
+		if let Some(join_handle) = take(&mut self.flush_thread) {
+			let _ = join_handle.join();
+		}
+	}
+
+	fn queue_flush(&mut self, force: bool) {
+		if self.new_directories.len() < INDEX_BUILDING_INSERT_BUFFER_SIZE
+			&& self.new_songs.len() < INDEX_BUILDING_INSERT_BUFFER_SIZE
+			&& !force
+		{
+			return;
+		}
+
+		if self.new_directories.len() >= INDEX_BUILDING_INSERT_BUFFER_SIZE || force {
+			self.wait_flush();
+			let db = self.db.clone();
+			let new_directories = take(&mut self.new_directories);
+			self.flush_thread = Some(spawn(|| Self::flush_directories(db, new_directories)));
+		}
+		if self.new_songs.len() >= INDEX_BUILDING_INSERT_BUFFER_SIZE || force {
+			self.wait_flush();
+			let db = self.db.clone();
+			let new_songs = take(&mut self.new_songs);
+			self.flush_thread = Some(spawn(|| Self::flush_songs(db, new_songs)));
+		}
+	}
+
 	fn insert_item(&mut self, insert: Item) {
 		match insert {
 			Item::Directory(d) => {
 				self.new_directories.push(d);
-				if self.new_directories.len() >= INDEX_BUILDING_INSERT_BUFFER_SIZE {
-					self.flush_directories();
-				}
 			}
 			Item::Song(s) => {
 				self.new_songs.push(s);
-				if self.new_songs.len() >= INDEX_BUILDING_INSERT_BUFFER_SIZE {
-					self.flush_songs();
-				}
 			}
 		};
+
+		self.queue_flush(false);
 	}
 
-	fn flush_directories(&mut self) {
-		let res = self.db.connect().ok().and_then(|mut connection| {
+	fn flush_directories(db: DB, new_directories: Vec<Directory>) {
+		if new_directories.is_empty() {
+			return;
+		}
+
+		let res = db.connect().ok().and_then(|mut connection| {
 			diesel::insert_into(directories::table)
-				.values(&self.new_directories)
+				.values(&new_directories)
 				.execute(&mut *connection) // TODO https://github.com/diesel-rs/diesel/issues/1822
 				.ok()
 		});
 		if res.is_none() {
 			error!("Could not insert new directories in database");
 		}
-		self.new_directories.clear();
 	}
 
-	fn flush_songs(&mut self) {
-		let res = self.db.connect().ok().and_then(|mut connection| {
+	fn flush_songs(db: DB, new_songs: Vec<Song>) {
+		if new_songs.is_empty() {
+			return;
+		}
+
+		let res = db.connect().ok().and_then(|mut connection| {
 			diesel::insert_into(songs::table)
-				.values(&self.new_songs)
+				.values(&new_songs)
 				.execute(&mut *connection) // TODO https://github.com/diesel-rs/diesel/issues/1822
 				.ok()
 		});
 		if res.is_none() {
 			error!("Could not insert new songs in database");
 		}
-		self.new_songs.clear();
 	}
 }
 
 impl Drop for Inserter {
 	fn drop(&mut self) {
-		if !self.new_directories.is_empty() {
-			self.flush_directories();
-		}
-		if !self.new_songs.is_empty() {
-			self.flush_songs();
-		}
+		self.queue_flush(true);
+		self.wait_flush();
 	}
 }
