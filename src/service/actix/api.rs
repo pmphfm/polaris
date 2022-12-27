@@ -1,11 +1,11 @@
 use actix_files::NamedFile;
-use actix_web::body::{BoxBody, MessageBody};
+use actix_web::body::BoxBody;
 use actix_web::http::header::{
 	ContentDisposition, ContentEncoding, DispositionParam, DispositionType,
 };
 use actix_web::{
 	delete,
-	dev::{Payload, Service, ServiceRequest, ServiceResponse},
+	dev::Payload,
 	error::{ErrorForbidden, ErrorInternalServerError, ErrorUnauthorized},
 	get,
 	http::StatusCode,
@@ -13,12 +13,10 @@ use actix_web::{
 	web::{self, Data, Json, JsonConfig, ServiceConfig},
 	FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-use actix_web_httpauth::extractors::{basic::BasicAuth, bearer::BearerAuth};
-use cookie::{self, *};
-use futures_util::future::{err, ok};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
+use futures_util::future::err;
 use percent_encoding::percent_decode_str;
 use std::future::Future;
-use std::ops::Deref;
 use std::path::Path;
 use std::pin::Pin;
 use std::str;
@@ -84,6 +82,7 @@ pub fn make_config() -> impl FnOnce(&mut ServiceConfig) + Clone {
 impl ResponseError for APIError {
 	fn status_code(&self) -> StatusCode {
 		match self {
+			APIError::AuthenticationRequired => StatusCode::UNAUTHORIZED,
 			APIError::IncorrectCredentials => StatusCode::UNAUTHORIZED,
 			APIError::EmptyUsername => StatusCode::BAD_REQUEST,
 			APIError::EmptyPassword => StatusCode::BAD_REQUEST,
@@ -103,76 +102,9 @@ impl ResponseError for APIError {
 	}
 }
 
-#[derive(Clone)]
-struct Cookies {
-	jar: CookieJar,
-	key: Key,
-}
-
-impl Cookies {
-	fn new(key: Key) -> Self {
-		let jar = CookieJar::new();
-		Self { jar, key }
-	}
-
-	fn add_original(&mut self, cookie: Cookie<'static>) {
-		self.jar.add_original(cookie);
-	}
-
-	fn add(&mut self, cookie: Cookie<'static>) {
-		self.jar.add(cookie);
-	}
-
-	fn add_signed(&mut self, cookie: Cookie<'static>) {
-		self.jar.signed_mut(&self.key).add(cookie);
-	}
-
-	#[allow(dead_code)]
-	fn get(&self, name: &str) -> Option<&Cookie> {
-		self.jar.get(name)
-	}
-
-	fn get_signed(&mut self, name: &str) -> Option<Cookie> {
-		self.jar.signed(&self.key).get(name)
-	}
-}
-
-impl FromRequest for Cookies {
-	type Error = actix_web::Error;
-	type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
-
-	fn from_request(request: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-		let request_cookies = match request.cookies() {
-			Ok(c) => c,
-			Err(_) => return Box::pin(err(ErrorInternalServerError(APIError::Unspecified))),
-		};
-
-		let key = match request.app_data::<Data<Key>>() {
-			Some(k) => k.as_ref(),
-			None => return Box::pin(err(ErrorInternalServerError(APIError::Unspecified))),
-		};
-
-		let mut cookies = Cookies::new(key.clone());
-		for cookie in request_cookies.deref() {
-			cookies.add_original(cookie.clone());
-		}
-
-		Box::pin(ok(cookies))
-	}
-}
-
-#[derive(Debug)]
-enum AuthSource {
-	AuthorizationBasic,
-	AuthorizationBearer,
-	Cookie,
-	QueryParameter,
-}
-
 #[derive(Debug)]
 struct Auth {
 	username: String,
-	source: AuthSource,
 }
 
 impl FromRequest for Auth {
@@ -185,29 +117,11 @@ impl FromRequest for Auth {
 			None => return Box::pin(err(ErrorInternalServerError(APIError::Unspecified))),
 		};
 
-		let cookies_future = Cookies::from_request(request, payload);
-		let basic_auth_future = BasicAuth::from_request(request, payload);
 		let bearer_auth_future = BearerAuth::from_request(request, payload);
 		let query_params_future =
 			web::Query::<dto::AuthQueryParameters>::from_request(request, payload);
 
 		Box::pin(async move {
-			// Auth via session cookie
-			{
-				let mut cookies = cookies_future.await?;
-				if let Some(session_cookie) = cookies.get_signed(dto::COOKIE_SESSION) {
-					let username = session_cookie.value().to_string();
-					let exists = block(move || user_manager.exists(&username)).await?;
-					if !exists {
-						return Err(ErrorUnauthorized(APIError::Unspecified));
-					}
-					return Ok(Auth {
-						username: session_cookie.value().to_string(),
-						source: AuthSource::Cookie,
-					});
-				}
-			}
-
 			// Auth via bearer token in query parameter
 			if let Ok(query) = query_params_future.await {
 				let auth_token = user::AuthToken(query.auth_token.clone());
@@ -217,7 +131,6 @@ impl FromRequest for Auth {
 				.await?;
 				return Ok(Auth {
 					username: authorization.username,
-					source: AuthSource::QueryParameter,
 				});
 			}
 
@@ -230,29 +143,10 @@ impl FromRequest for Auth {
 				.await?;
 				return Ok(Auth {
 					username: authorization.username,
-					source: AuthSource::AuthorizationBearer,
 				});
 			}
 
-			// Auth via basic authorization header
-			{
-				let basic_auth = basic_auth_future.await?;
-				let username = basic_auth.user_id().to_string();
-				let password = basic_auth
-					.password()
-					.map(|s| s.as_ref())
-					.unwrap_or("")
-					.to_string();
-				let auth_result = block(move || user_manager.login(&username, &password)).await;
-				if auth_result.is_ok() {
-					Ok(Auth {
-						username: basic_auth.user_id().to_string(),
-						source: AuthSource::AuthorizationBasic,
-					})
-				} else {
-					Err(ErrorUnauthorized(APIError::Unspecified))
-				}
-			}
+			Err(ErrorUnauthorized(APIError::AuthenticationRequired))
 		})
 	}
 }
@@ -293,93 +187,6 @@ impl FromRequest for AdminRights {
 			}
 		})
 	}
-}
-
-pub fn http_auth_middleware<
-	B: MessageBody + 'static,
-	S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error> + 'static,
->(
-	request: ServiceRequest,
-	service: &S,
-) -> Pin<Box<dyn Future<Output = Result<ServiceResponse<B>, actix_web::Error>>>> {
-	let user_manager = match request.app_data::<Data<user::Manager>>() {
-		Some(m) => m.clone(),
-		None => return Box::pin(err(ErrorInternalServerError(APIError::Unspecified))),
-	};
-
-	let (request, mut payload) = request.into_parts();
-	let auth_future = Auth::from_request(&request, &mut payload);
-	let cookies_future = Cookies::from_request(&request, &mut payload);
-	let request = ServiceRequest::from_parts(request, payload);
-
-	let response_future = service.call(request);
-	Box::pin(async move {
-		let mut response = response_future.await?;
-		if let Ok(auth) = auth_future.await {
-			let set_cookies = match auth.source {
-				AuthSource::AuthorizationBasic => true,
-				AuthSource::AuthorizationBearer => false,
-				AuthSource::Cookie => false,
-				AuthSource::QueryParameter => false,
-			};
-			if set_cookies {
-				let cookies = cookies_future.await?;
-				let username = auth.username.clone();
-				let is_admin = block(move || {
-					user_manager
-						.is_admin(&auth.username)
-						.map_err(|_| APIError::Unspecified)
-				})
-				.await?;
-				add_auth_cookies(response.response_mut(), &cookies, &username, is_admin)?;
-			}
-		}
-		Ok(response)
-	})
-}
-
-fn add_auth_cookies<T>(
-	response: &mut HttpResponse<T>,
-	cookies: &Cookies,
-	username: &str,
-	is_admin: bool,
-) -> Result<(), http::Error> {
-	let mut cookies = cookies.clone();
-
-	cookies.add_signed(
-		Cookie::build(dto::COOKIE_SESSION, username.to_owned())
-			.same_site(cookie::SameSite::Lax)
-			.http_only(true)
-			.permanent()
-			.finish(),
-	);
-
-	cookies.add(
-		Cookie::build(dto::COOKIE_USERNAME, username.to_owned())
-			.same_site(cookie::SameSite::Lax)
-			.http_only(false)
-			.permanent()
-			.path("/")
-			.finish(),
-	);
-
-	cookies.add(
-		Cookie::build(dto::COOKIE_ADMIN, format!("{}", is_admin))
-			.same_site(cookie::SameSite::Lax)
-			.http_only(false)
-			.permanent()
-			.path("/")
-			.finish(),
-	);
-
-	let headers = response.headers_mut();
-	for cookie in cookies.jar.delta() {
-		http::HeaderValue::from_str(&cookie.to_string()).map(|c| {
-			headers.append(http::header::SET_COOKIE, c);
-		})?;
-	}
-
-	Ok(())
 }
 
 struct MediaFile {
@@ -604,7 +411,6 @@ async fn trigger_index(
 async fn login(
 	user_manager: Data<user::Manager>,
 	credentials: Json<dto::Credentials>,
-	cookies: Cookies,
 ) -> Result<HttpResponse, APIError> {
 	let username = credentials.username.clone();
 	let (user::AuthToken(token), is_admin) =
@@ -619,9 +425,7 @@ async fn login(
 		token,
 		is_admin,
 	};
-	let mut response = HttpResponse::Ok().json(authorization);
-	add_auth_cookies(&mut response, &cookies, &username, is_admin)
-		.map_err(|_| APIError::Unspecified)?;
+	let response = HttpResponse::Ok().json(authorization);
 	Ok(response)
 }
 
