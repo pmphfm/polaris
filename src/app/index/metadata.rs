@@ -56,7 +56,6 @@ impl From<id3::Tag> for SongTags {
 		let track_number = tag.track();
 		let year = tag
 			.year()
-			.map(|y| y)
 			.or_else(|| tag.date_released().map(|d| d.year))
 			.or_else(|| tag.original_date_released().map(|d| d.year))
 			.or_else(|| tag.date_recorded().map(|d| d.year));

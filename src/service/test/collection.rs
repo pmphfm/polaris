@@ -5,11 +5,11 @@ use crate::app::index;
 use crate::service::test::{add_trailing_slash, constants::*, protocol, ServiceType, TestService};
 use crate::test_name;
 
-const TEST_ALL_SONGS_COUNT: usize = 13;
+const TEST_ALL_SONGS_COUNT: usize = 15;
 
 // Results returned by query can be in a random order. This function returns true if the title
 // is found in results.
-fn result_has_title(results: &Vec<index::CollectionFile>, title: &str) -> bool {
+fn result_has_title(results: &[index::CollectionFile], title: &str) -> bool {
 	results
 		.iter()
 		.find(|k| match k {
@@ -17,7 +17,7 @@ fn result_has_title(results: &Vec<index::CollectionFile>, title: &str) -> bool {
 				let x = s.title.as_ref().unwrap();
 				x == title
 			}
-			_ => return false,
+			_ => false,
 		})
 		.is_some()
 }

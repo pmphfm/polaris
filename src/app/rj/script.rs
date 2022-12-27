@@ -402,7 +402,7 @@ impl ScriptCache {
 					current_set.iter().nth(rand_index).unwrap().to_owned(),
 				));
 			}
-			if found == None {
+			if found.is_none() {
 				let rand_index = rand::random::<usize>() % (current_set.len());
 				found = Some((
 					current_tag.to_owned(),

@@ -337,8 +337,8 @@ impl Index {
 
 			if let Some(years) = fields.years.as_ref() {
 				filter = filter
-					.filter(year.ge(years.start as i32))
-					.filter(year.lt(years.end as i32))
+					.filter(year.ge(years.start))
+					.filter(year.lt(years.end))
 			}
 
 			let real_songs: Vec<Song> = filter.load(&mut connection)?;

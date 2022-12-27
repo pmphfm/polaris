@@ -233,6 +233,7 @@ impl AnnouncementOptions {
 		Ok(())
 	}
 
+	#[allow(clippy::type_complexity)]
 	fn iterate_all_fragments<T>(
 		&self,
 		fun: &mut dyn FnMut(&str, &Field, &str) -> (bool, T),
@@ -249,6 +250,7 @@ impl AnnouncementOptions {
 		default_return
 	}
 
+	#[allow(clippy::type_complexity)]
 	fn iterate_all_words<T>(
 		&self,
 		fun: &mut dyn FnMut(&str, &Field, &str, &str) -> (bool, T),

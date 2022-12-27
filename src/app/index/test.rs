@@ -8,7 +8,7 @@ use crate::db::{directories, songs};
 use crate::test_name;
 
 const TEST_MOUNT_NAME: &str = "root";
-const TEST_ALL_SONGS_COUNT: usize = 13;
+const TEST_ALL_SONGS_COUNT: usize = 15;
 const TEST_DIRECTORIES_COUNT: usize = 6;
 
 #[test]
@@ -36,7 +36,7 @@ fn update_removes_missing_content() {
 
 	let copy_options = fs_extra::dir::CopyOptions::new();
 	fs_extra::dir::copy(
-		&original_collection_dir,
+		original_collection_dir,
 		&builder.test_directory,
 		&copy_options,
 	)
@@ -57,14 +57,14 @@ fn update_removes_missing_content() {
 	}
 
 	let khemmis_directory = test_collection_dir.join("Khemmis");
-	std::fs::remove_dir_all(&khemmis_directory).unwrap();
+	std::fs::remove_dir_all(khemmis_directory).unwrap();
 	ctx.index.update().unwrap();
 	{
 		let mut connection = ctx.db.connect().unwrap();
 		let all_directories: Vec<Directory> = directories::table.load(&mut connection).unwrap();
 		let all_songs: Vec<Song> = songs::table.load(&mut connection).unwrap();
 		assert_eq!(all_directories.len(), 4);
-		assert_eq!(all_songs.len(), 8);
+		assert_eq!(all_songs.len(), 10);
 	}
 }
 
@@ -96,7 +96,7 @@ fn can_browse_directory() {
 
 	let files = ctx.index.browse(Path::new(TEST_MOUNT_NAME)).unwrap();
 
-	assert_eq!(files.len(), 2);
+	assert_eq!(files.len(), 4);
 	if let (CollectionFile::Directory(ref d1), CollectionFile::Directory(ref d2)) =
 		(&files[0], &files[1])
 	{
@@ -126,7 +126,7 @@ fn can_flatten_directory() {
 		.build();
 	ctx.index.update().unwrap();
 	let path: PathBuf = [TEST_MOUNT_NAME, "Tobokegao"].iter().collect();
-	let songs = ctx.index.flatten(&path).unwrap();
+	let songs = ctx.index.flatten(path).unwrap();
 	assert_eq!(songs.len(), 8);
 }
 
@@ -137,7 +137,7 @@ fn can_flatten_directory_with_shared_prefix() {
 		.build();
 	ctx.index.update().unwrap();
 	let path: PathBuf = [TEST_MOUNT_NAME, "Tobokegao", "Picnic"].iter().collect(); // Prefix of '(Picnic Remixes)'
-	let songs = ctx.index.flatten(&path).unwrap();
+	let songs = ctx.index.flatten(path).unwrap();
 	assert_eq!(songs.len(), 7);
 }
 

@@ -482,7 +482,7 @@ mod test {
 	const TEST_PASSWORD: &str = "password";
 	const TEST_PLAYLIST_NAME: &str = "Chill & Grill";
 	const TEST_MOUNT_NAME: &str = "root";
-	const TEST_ALL_SONGS_COUNT: usize = 13;
+	const TEST_ALL_SONGS_COUNT: usize = 15;
 
 	fn test_songs_path() -> String {
 		let songs_path: PathBuf = ["test-data", "small-collection"].iter().collect();
@@ -646,8 +646,8 @@ mod test {
 			error_song.title,
 			Some(format!("error {}", error_song_real_path.to_str().unwrap()))
 		);
-		assert_eq!(error_song.artist, Some(format!("error artist")));
-		assert_eq!(error_song.album, Some(format!("error album")));
+		assert_eq!(error_song.artist, Some("error artist".to_string()));
+		assert_eq!(error_song.album, Some("error album".to_string()));
 		assert_eq!(error_song.path, error_song_path);
 	}
 

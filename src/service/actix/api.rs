@@ -541,7 +541,7 @@ async fn get_audio(
 	})
 	.await?;
 
-	let named_file = NamedFile::open(&audio_path).map_err(|_| APIError::AudioFileIOError)?;
+	let named_file = NamedFile::open(audio_path).map_err(|_| APIError::AudioFileIOError)?;
 	Ok(MediaFile::new(named_file))
 }
 
@@ -565,8 +565,7 @@ async fn get_thumbnail(
 	})
 	.await?;
 
-	let named_file =
-		NamedFile::open(&thumbnail_path).map_err(|_| APIError::ThumbnailFileIOError)?;
+	let named_file = NamedFile::open(thumbnail_path).map_err(|_| APIError::ThumbnailFileIOError)?;
 
 	Ok(MediaFile::new(named_file))
 }
@@ -620,7 +619,7 @@ async fn export_playlist_m3u(
 		.content_type("application/force-download")
 		.insert_header(ContentDisposition {
 			disposition: DispositionType::Attachment,
-			parameters: vec![DispositionParam::Filename(String::from(download_file_name))],
+			parameters: vec![DispositionParam::Filename(download_file_name)],
 		})
 		.body(buffer))
 }
@@ -792,7 +791,7 @@ fn update_user_settings(
 	let mut rj_manager = index.rj_manager.write().unwrap();
 	let to_restore = rj_manager.update_user_settings(new_settings.to_owned())?;
 	settings_manager
-		.put_rj_user_settings(&new_settings.to_owned())
+		.put_rj_user_settings(&new_settings)
 		.map_err(|op| {
 			rj_manager.restore_user_settings(to_restore);
 			op.into()
@@ -831,11 +830,9 @@ fn update_admin_settings(
 	new_settings: Json<rj::AdminSettings>,
 ) -> Result<(), APIError> {
 	let mut rj_manager = index.rj_manager.write().unwrap();
-	let to_restore = rj_manager
-		.update_admin_settings(new_settings.to_owned())
-		.map_err(|err| err)?;
+	let to_restore = rj_manager.update_admin_settings(new_settings.to_owned())?;
 	settings_manager
-		.put_rj_admin_settings(&new_settings.to_owned())
+		.put_rj_admin_settings(&new_settings)
 		.map_err(|op| {
 			rj_manager.update_admin_settings(to_restore).unwrap();
 			op.into()

@@ -10,7 +10,7 @@ fn build_user_guide() {
 	let mdbook_src_path = Path::new(&mdbook_dir).join(mdbook_rel_path);
 	let mdbook_output_dir = Path::new(&mdbook_dir).join("docs").join("user-guide");
 	Command::new("mdbook")
-		.args(&[
+		.args([
 			OsStr::new("build"),
 			mdbook_src_path.as_os_str(),
 			OsStr::new("-d"),
