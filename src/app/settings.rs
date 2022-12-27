@@ -13,12 +13,12 @@ pub enum Error {
 	AuthSecretNotFound,
 	#[error("Auth secret does not have the expected format")]
 	InvalidAuthSecret,
-	#[error("Missing index sleep duration")]
-	IndexSleepDurationNotFound,
-	#[error("Missing index album art pattern")]
-	IndexAlbumArtPatternNotFound,
+	#[error("Missing settings")]
+	MiscSettingsNotFound,
 	#[error("Index album art pattern is not a valid regex")]
 	IndexAlbumArtPatternInvalid,
+	#[error(transparent)]
+	Database(#[from] diesel::result::Error),
 	#[error("Unspecified")]
 	Unspecified,
 }
@@ -64,7 +64,7 @@ impl Manager {
 			.get_result(&mut connection)
 			.map_err(|e| match e {
 				diesel::result::Error::NotFound => Error::AuthSecretNotFound,
-				_ => Error::Unspecified,
+				e => e.into(),
 			})?;
 		secret
 			.try_into()
@@ -73,31 +73,17 @@ impl Manager {
 	}
 
 	pub fn get_index_sleep_duration(&self) -> Result<Duration, Error> {
-		use self::misc_settings::dsl::*;
-		let mut connection = self.db.connect()?;
-		misc_settings
-			.select(index_sleep_duration_seconds)
-			.get_result(&mut connection)
-			.map_err(|e| match e {
-				diesel::result::Error::NotFound => Error::IndexSleepDurationNotFound,
-				_ => Error::Unspecified,
-			})
-			.map(|s: i32| Duration::from_secs(s as u64))
+		let settings = self.read()?;
+		Ok(Duration::from_secs(
+			settings.index_sleep_duration_seconds as u64,
+		))
 	}
 
 	pub fn get_index_album_art_pattern(&self) -> Result<Regex, Error> {
-		use self::misc_settings::dsl::*;
-		let mut connection = self.db.connect()?;
-		misc_settings
-			.select(index_album_art_pattern)
-			.get_result(&mut connection)
-			.map_err(|e| match e {
-				diesel::result::Error::NotFound => Error::IndexAlbumArtPatternNotFound,
-				_ => Error::Unspecified,
-			})
-			.and_then(|s: String| {
-				Regex::new(&format!("(?i){}", &s)).map_err(|_| Error::IndexAlbumArtPatternInvalid)
-			})
+		let settings = self.read()?;
+		let regex = Regex::new(&format!("(?i){}", &settings.index_album_art_pattern))
+			.map_err(|_| Error::IndexAlbumArtPatternInvalid)?;
+		Ok(regex)
 	}
 
 	pub fn read(&self) -> Result<Settings, Error> {
@@ -107,7 +93,10 @@ impl Manager {
 		let settings: Settings = misc_settings
 			.select((index_sleep_duration_seconds, index_album_art_pattern))
 			.get_result(&mut connection)
-			.map_err(|_| Error::Unspecified)?;
+			.map_err(|e| match e {
+				diesel::result::Error::NotFound => Error::MiscSettingsNotFound,
+				e => e.into(),
+			})?;
 
 		Ok(settings)
 	}
@@ -118,15 +107,13 @@ impl Manager {
 		if let Some(sleep_duration) = new_settings.reindex_every_n_seconds {
 			diesel::update(misc_settings::table)
 				.set(misc_settings::index_sleep_duration_seconds.eq(sleep_duration as i32))
-				.execute(&mut connection)
-				.map_err(|_| Error::Unspecified)?;
+				.execute(&mut connection)?;
 		}
 
 		if let Some(ref album_art_pattern) = new_settings.album_art_pattern {
 			diesel::update(misc_settings::table)
 				.set(misc_settings::index_album_art_pattern.eq(album_art_pattern))
-				.execute(&mut connection)
-				.map_err(|_| Error::Unspecified)?;
+				.execute(&mut connection)?;
 		}
 
 		Ok(())
@@ -140,7 +127,7 @@ impl Manager {
 				.select((scripts, enable_by_default, tts_people))
 				.get_result(&mut connection)
 				.map_err(|e| match e {
-					diesel::result::Error::NotFound => Error::IndexSleepDurationNotFound,
+					diesel::result::Error::NotFound => Error::Unspecified,
 					_ => Error::Unspecified,
 				})?;
 
@@ -158,7 +145,7 @@ impl Manager {
 			.select((tts_service_url, tts_text_param_key, tts_enable_ssml))
 			.get_result::<(Option<String>, Option<String>, i32)>(&mut connection)
 			.map_err(|e| match e {
-				diesel::result::Error::NotFound => Error::IndexSleepDurationNotFound,
+				diesel::result::Error::NotFound => Error::Unspecified,
 				_ => Error::Unspecified,
 			})?;
 		Ok(AdminSettings {

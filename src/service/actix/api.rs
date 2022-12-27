@@ -97,6 +97,7 @@ impl ResponseError for APIError {
 			APIError::PlaylistNotFound(_) => StatusCode::NOT_FOUND,
 			APIError::VFSPathNotFound => StatusCode::NOT_FOUND,
 			APIError::ParseFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
+			APIError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
 			APIError::Unspecified => StatusCode::INTERNAL_SERVER_ERROR,
 		}
 	}
