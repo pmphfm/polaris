@@ -115,7 +115,6 @@ impl Manager {
 
 #[cfg(test)]
 mod test {
-	use std::path::{Path, PathBuf};
 
 	use super::*;
 

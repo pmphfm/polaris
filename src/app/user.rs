@@ -33,6 +33,7 @@ impl From<anyhow::Error> for Error {
 		Error::Unspecified
 	}
 }
+
 #[derive(Debug, Insertable, Queryable)]
 #[diesel(table_name = users)]
 pub struct User {
@@ -69,10 +70,16 @@ pub struct Authorization {
 	pub scope: AuthorizationScope,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Preferences {
+	pub lastfm_username: Option<String>,
+	pub web_theme_base: Option<String>,
+	pub web_theme_accent: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct Manager {
-	// TODO make this private and move preferences methods in this file
-	pub db: DB,
+	db: DB,
 	auth_secret: AuthSecret,
 }
 
@@ -242,6 +249,38 @@ impl Manager {
 		Ok(is_admin != 0)
 	}
 
+	pub fn read_preferences(&self, username: &str) -> Result<Preferences, Error> {
+		use crate::db::users::dsl::*;
+		let mut connection = self.db.connect()?;
+		let (theme_base, theme_accent, read_lastfm_username) = users
+			.select((web_theme_base, web_theme_accent, lastfm_username))
+			.filter(name.eq(username))
+			.get_result(&mut connection)
+			.map_err(|_| Error::Unspecified)?;
+		Ok(Preferences {
+			web_theme_base: theme_base,
+			web_theme_accent: theme_accent,
+			lastfm_username: read_lastfm_username,
+		})
+	}
+
+	pub fn write_preferences(
+		&self,
+		username: &str,
+		preferences: &Preferences,
+	) -> Result<(), Error> {
+		use crate::db::users::dsl::*;
+		let mut connection = self.db.connect()?;
+		diesel::update(users.filter(name.eq(username)))
+			.set((
+				web_theme_base.eq(&preferences.web_theme_base),
+				web_theme_accent.eq(&preferences.web_theme_accent),
+			))
+			.execute(&mut connection)
+			.map_err(|_| Error::Unspecified)?;
+		Ok(())
+	}
+
 	pub fn lastfm_link(
 		&self,
 		username: &str,
@@ -312,41 +351,6 @@ fn verify_password(password_hash: &str, attempted_password: &str) -> bool {
 			.verify_password(attempted_password.as_bytes(), &h)
 			.is_ok(),
 		Err(_) => false,
-	}
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Preferences {
-	pub lastfm_username: Option<String>,
-	pub web_theme_base: Option<String>,
-	pub web_theme_accent: Option<String>,
-}
-
-impl Manager {
-	pub fn read_preferences(&self, username: &str) -> Result<Preferences> {
-		use self::users::dsl::*;
-		let mut connection = self.db.connect()?;
-		let (theme_base, theme_accent, read_lastfm_username) = users
-			.select((web_theme_base, web_theme_accent, lastfm_username))
-			.filter(name.eq(username))
-			.get_result(&mut connection)?;
-		Ok(Preferences {
-			web_theme_base: theme_base,
-			web_theme_accent: theme_accent,
-			lastfm_username: read_lastfm_username,
-		})
-	}
-
-	pub fn write_preferences(&self, username: &str, preferences: &Preferences) -> Result<()> {
-		use crate::db::users::dsl::*;
-		let mut connection = self.db.connect()?;
-		diesel::update(users.filter(name.eq(username)))
-			.set((
-				web_theme_base.eq(&preferences.web_theme_base),
-				web_theme_accent.eq(&preferences.web_theme_accent),
-			))
-			.execute(&mut connection)?;
-		Ok(())
 	}
 }
 

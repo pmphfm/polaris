@@ -15,6 +15,7 @@ impl From<anyhow::Error> for Error {
 		Error::Unspecified
 	}
 }
+
 #[derive(Default, Deserialize)]
 pub struct Config {
 	pub settings: Option<settings::NewSettings>,
@@ -116,8 +117,9 @@ impl Manager {
 
 #[cfg(test)]
 mod test {
+
 	use super::*;
-	use crate::app::{ddns, settings, test, user, vfs};
+	use crate::app::test;
 	use crate::test_name;
 
 	#[test]

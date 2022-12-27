@@ -28,6 +28,7 @@ impl From<anyhow::Error> for Error {
 		Error::Unspecified
 	}
 }
+
 #[derive(Clone, Default)]
 pub struct AuthSecret {
 	pub key: [u8; 32],

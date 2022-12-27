@@ -1,15 +1,12 @@
 use anyhow::*;
-use anyhow::{bail, Result};
-use image::ImageOutputFormat;
-use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer};
+use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, ImageOutputFormat};
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-use crate::utils;
-use crate::utils::AudioFormat;
+use crate::utils::{get_audio_format, AudioFormat};
 
 #[derive(Debug, Hash)]
 pub struct Options {
@@ -27,6 +24,7 @@ impl Default for Options {
 		}
 	}
 }
+
 #[derive(Clone)]
 pub struct Manager {
 	thumbnails_dir_path: PathBuf,
@@ -81,7 +79,7 @@ impl Manager {
 	}
 }
 
-pub fn generate_thumbnail(image_path: &Path, options: &Options) -> Result<DynamicImage> {
+fn generate_thumbnail(image_path: &Path, options: &Options) -> Result<DynamicImage> {
 	let source_image = DynamicImage::ImageRgb8(read(image_path)?.into_rgb8());
 	let (source_width, source_height) = source_image.dimensions();
 	let largest_dimension = cmp::max(source_width, source_height);
@@ -117,8 +115,8 @@ pub fn generate_thumbnail(image_path: &Path, options: &Options) -> Result<Dynami
 	Ok(final_image)
 }
 
-pub fn read(image_path: &Path) -> Result<DynamicImage> {
-	match utils::get_audio_format(image_path) {
+fn read(image_path: &Path) -> Result<DynamicImage> {
+	match get_audio_format(image_path) {
 		Some(AudioFormat::AIFF) => read_aiff(image_path),
 		Some(AudioFormat::APE) => read_ape(image_path),
 		Some(AudioFormat::FLAC) => read_flac(image_path),
@@ -151,19 +149,16 @@ fn read_flac(path: &Path) -> Result<DynamicImage> {
 
 fn read_mp3(path: &Path) -> Result<DynamicImage> {
 	let tag = id3::Tag::read_from_path(path)?;
-
 	read_id3(path, &tag)
 }
 
 fn read_aiff(path: &Path) -> Result<DynamicImage> {
 	let tag = id3::Tag::read_from_aiff_path(path)?;
-
 	read_id3(path, &tag)
 }
 
 fn read_wave(path: &Path) -> Result<DynamicImage> {
 	let tag = id3::Tag::read_from_wav_path(path)?;
-
 	read_id3(path, &tag)
 }
 
@@ -198,57 +193,63 @@ fn read_opus(_: &Path) -> Result<DynamicImage> {
 	bail!("Embedded images are not supported in Opus files");
 }
 
-#[test]
-fn can_read_artwork_data() {
-	let ext_img = image::open("test-data/artwork/Folder.png")
-		.unwrap()
-		.to_rgb8();
-	let embedded_img = image::open("test-data/artwork/Embedded.png")
-		.unwrap()
-		.to_rgb8();
+#[cfg(test)]
+mod test {
 
-	let folder_img = read(Path::new("test-data/artwork/Folder.png"))
-		.unwrap()
-		.to_rgb8();
-	assert_eq!(folder_img, ext_img);
+	use super::*;
 
-	let aiff_img = read(Path::new("test-data/artwork/sample.aif"))
-		.unwrap()
-		.to_rgb8();
-	assert_eq!(aiff_img, embedded_img);
+	#[test]
+	fn can_read_artwork_data() {
+		let ext_img = image::open("test-data/artwork/Folder.png")
+			.unwrap()
+			.to_rgb8();
+		let embedded_img = image::open("test-data/artwork/Embedded.png")
+			.unwrap()
+			.to_rgb8();
 
-	let ape_img = read(Path::new("test-data/artwork/sample.ape"))
-		.map(|d| d.to_rgb8())
-		.ok();
-	assert_eq!(ape_img, None);
+		let folder_img = read(Path::new("test-data/artwork/Folder.png"))
+			.unwrap()
+			.to_rgb8();
+		assert_eq!(folder_img, ext_img);
 
-	let flac_img = read(Path::new("test-data/artwork/sample.flac"))
-		.unwrap()
-		.to_rgb8();
-	assert_eq!(flac_img, embedded_img);
+		let aiff_img = read(Path::new("test-data/artwork/sample.aif"))
+			.unwrap()
+			.to_rgb8();
+		assert_eq!(aiff_img, embedded_img);
 
-	let mp3_img = read(Path::new("test-data/artwork/sample.mp3"))
-		.unwrap()
-		.to_rgb8();
-	assert_eq!(mp3_img, embedded_img);
+		let ape_img = read(Path::new("test-data/artwork/sample.ape"))
+			.map(|d| d.to_rgb8())
+			.ok();
+		assert_eq!(ape_img, None);
 
-	let m4a_img = read(Path::new("test-data/artwork/sample.m4a"))
-		.unwrap()
-		.to_rgb8();
-	assert_eq!(m4a_img, embedded_img);
+		let flac_img = read(Path::new("test-data/artwork/sample.flac"))
+			.unwrap()
+			.to_rgb8();
+		assert_eq!(flac_img, embedded_img);
 
-	let ogg_img = read(Path::new("test-data/artwork/sample.ogg"))
-		.map(|d| d.to_rgb8())
-		.ok();
-	assert_eq!(ogg_img, None);
+		let mp3_img = read(Path::new("test-data/artwork/sample.mp3"))
+			.unwrap()
+			.to_rgb8();
+		assert_eq!(mp3_img, embedded_img);
 
-	let opus_img = read(Path::new("test-data/artwork/sample.opus"))
-		.map(|d| d.to_rgb8())
-		.ok();
-	assert_eq!(opus_img, None);
+		let m4a_img = read(Path::new("test-data/artwork/sample.m4a"))
+			.unwrap()
+			.to_rgb8();
+		assert_eq!(m4a_img, embedded_img);
 
-	let wave_img = read(Path::new("test-data/artwork/sample.wav"))
-		.unwrap()
-		.to_rgb8();
-	assert_eq!(wave_img, embedded_img);
+		let ogg_img = read(Path::new("test-data/artwork/sample.ogg"))
+			.map(|d| d.to_rgb8())
+			.ok();
+		assert_eq!(ogg_img, None);
+
+		let opus_img = read(Path::new("test-data/artwork/sample.opus"))
+			.map(|d| d.to_rgb8())
+			.ok();
+		assert_eq!(opus_img, None);
+
+		let wave_img = read(Path::new("test-data/artwork/sample.wav"))
+			.unwrap()
+			.to_rgb8();
+		assert_eq!(wave_img, embedded_img);
+	}
 }
