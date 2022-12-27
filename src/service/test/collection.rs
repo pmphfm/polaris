@@ -10,16 +10,13 @@ const TEST_ALL_SONGS_COUNT: usize = 15;
 // Results returned by query can be in a random order. This function returns true if the title
 // is found in results.
 fn result_has_title(results: &[index::CollectionFile], title: &str) -> bool {
-	results
-		.iter()
-		.find(|k| match k {
-			index::CollectionFile::Song(ref s) => {
-				let x = s.title.as_ref().unwrap();
-				x == title
-			}
-			_ => false,
-		})
-		.is_some()
+	results.iter().any(|k| match k {
+		index::CollectionFile::Song(ref s) => {
+			let x = s.title.as_ref().unwrap();
+			x == title
+		}
+		_ => false,
+	})
 }
 
 #[test]
