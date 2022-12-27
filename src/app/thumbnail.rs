@@ -1,3 +1,10 @@
+use anyhow::*;
+use image::ImageOutputFormat;
+use std::collections::hash_map::DefaultHasher;
+use std::fs::{self, File};
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
+
 mod generate;
 mod options;
 mod read;
@@ -5,13 +12,6 @@ mod read;
 pub use generate::*;
 pub use options::*;
 pub use read::*;
-
-use anyhow::*;
-use image::ImageOutputFormat;
-use std::collections::hash_map::DefaultHasher;
-use std::fs::{self, File};
-use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct Manager {

@@ -1,9 +1,6 @@
-#![allow(dead_code)]
-
-use serde::Deserialize;
-
 use diesel::prelude::*;
 use regex::Regex;
+use serde::Deserialize;
 use std::convert::TryInto;
 use std::time::Duration;
 

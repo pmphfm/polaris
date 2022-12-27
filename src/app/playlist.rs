@@ -1,11 +1,3 @@
-mod error;
-mod m3u;
-#[cfg(test)]
-mod test;
-
-pub use error::*;
-pub use m3u::*;
-
 use anyhow::Result;
 use core::clone::Clone;
 use diesel::prelude::*;
@@ -18,6 +10,14 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use crate::app::index::Song;
 use crate::app::vfs;
 use crate::db::{playlist_songs, playlists, songs, users, DB};
+
+mod error;
+mod m3u;
+#[cfg(test)]
+mod test;
+
+pub use error::*;
+pub use m3u::*;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

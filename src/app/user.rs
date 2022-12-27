@@ -1,21 +1,19 @@
+use anyhow::anyhow;
+use diesel::prelude::*;
+use pbkdf2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use pbkdf2::Pbkdf2;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::db::users;
+use crate::app::settings::AuthSecret;
+use crate::db::{users, DB};
 
 mod error;
 mod preferences;
 #[cfg(test)]
 mod test;
 
-use anyhow::anyhow;
-use diesel::prelude::*;
-use pbkdf2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
-use pbkdf2::Pbkdf2;
-use rand::rngs::OsRng;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::app::settings::AuthSecret;
-use crate::db::DB;
 pub use error::*;
 pub use preferences::*;
 

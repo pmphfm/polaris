@@ -1,13 +1,11 @@
 use anyhow::{bail, Result};
 use core::ops::Deref;
+use diesel::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{self, Path, PathBuf};
 
-use diesel::prelude::*;
-
-use crate::db::mount_points;
-use crate::db::DB;
+use crate::db::{mount_points, DB};
 
 #[cfg(test)]
 mod test;

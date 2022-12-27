@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use anyhow::*;
 use rustfm_scrobble::{Scrobble, Scrobbler};
 use std::path::Path;
