@@ -1,18 +1,21 @@
 use actix_files::NamedFile;
+use actix_web::body::{BoxBody, MessageBody};
+use actix_web::http::header::{
+	ContentDisposition, ContentEncoding, DispositionParam, DispositionType,
+};
 use actix_web::{
-	client::HttpError,
 	delete,
-	dev::{BodyEncoding, MessageBody, Payload, Service, ServiceRequest, ServiceResponse},
-	error::{BlockingError, ErrorForbidden, ErrorInternalServerError, ErrorUnauthorized},
+	dev::{Payload, Service, ServiceRequest, ServiceResponse},
+	error::{ErrorForbidden, ErrorInternalServerError, ErrorUnauthorized},
 	get,
-	http::{ContentEncoding, StatusCode},
+	http::StatusCode,
 	post, put,
 	web::{self, Data, Json, JsonConfig, ServiceConfig},
-	FromRequest, HttpMessage, HttpRequest, HttpResponse, Responder, ResponseError,
+	FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 use actix_web_httpauth::extractors::{basic::BasicAuth, bearer::BearerAuth};
 use cookie::{self, *};
-use futures_util::future::{err, ok, ready, Ready};
+use futures_util::future::{err, ok};
 use percent_encoding::percent_decode_str;
 use std::future::Future;
 use std::ops::Deref;
@@ -94,6 +97,7 @@ impl ResponseError for APIError {
 			APIError::UserNotFound => StatusCode::NOT_FOUND,
 			APIError::PlaylistNotFound(_) => StatusCode::NOT_FOUND,
 			APIError::VFSPathNotFound => StatusCode::NOT_FOUND,
+			APIError::ParseFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			APIError::Unspecified => StatusCode::INTERNAL_SERVER_ERROR,
 		}
 	}
@@ -120,7 +124,7 @@ impl Cookies {
 	}
 
 	fn add_signed(&mut self, cookie: Cookie<'static>) {
-		self.jar.signed(&self.key).add(cookie);
+		self.jar.signed_mut(&self.key).add(cookie);
 	}
 
 	#[allow(dead_code)]
@@ -136,7 +140,6 @@ impl Cookies {
 impl FromRequest for Cookies {
 	type Error = actix_web::Error;
 	type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
-	type Config = ();
 
 	fn from_request(request: &HttpRequest, _payload: &mut Payload) -> Self::Future {
 		let request_cookies = match request.cookies() {
@@ -175,7 +178,6 @@ struct Auth {
 impl FromRequest for Auth {
 	type Error = actix_web::Error;
 	type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
-	type Config = ();
 
 	fn from_request(request: &HttpRequest, payload: &mut Payload) -> Self::Future {
 		let user_manager = match request.app_data::<Data<user::Manager>>() {
@@ -263,7 +265,6 @@ struct AdminRights {
 impl FromRequest for AdminRights {
 	type Error = actix_web::Error;
 	type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
-	type Config = ();
 
 	fn from_request(request: &HttpRequest, payload: &mut Payload) -> Self::Future {
 		let user_manager = match request.app_data::<Data<user::Manager>>() {
@@ -296,11 +297,10 @@ impl FromRequest for AdminRights {
 
 pub fn http_auth_middleware<
 	B: MessageBody + 'static,
-	S: Service<Response = ServiceResponse<B>, Request = ServiceRequest, Error = actix_web::Error>
-		+ 'static,
+	S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error> + 'static,
 >(
 	request: ServiceRequest,
-	service: &mut S,
+	service: &S,
 ) -> Pin<Box<dyn Future<Output = Result<ServiceResponse<B>, actix_web::Error>>>> {
 	let user_manager = match request.app_data::<Data<user::Manager>>() {
 		Some(m) => m.clone(),
@@ -310,10 +310,7 @@ pub fn http_auth_middleware<
 	let (request, mut payload) = request.into_parts();
 	let auth_future = Auth::from_request(&request, &mut payload);
 	let cookies_future = Cookies::from_request(&request, &mut payload);
-	let request = match ServiceRequest::from_parts(request, payload) {
-		Ok(s) => s,
-		Err(_) => return Box::pin(err(ErrorInternalServerError(APIError::Unspecified))),
-	};
+	let request = ServiceRequest::from_parts(request, payload);
 
 	let response_future = service.call(request);
 	Box::pin(async move {
@@ -346,7 +343,7 @@ fn add_auth_cookies<T>(
 	cookies: &Cookies,
 	username: &str,
 	is_admin: bool,
-) -> Result<(), HttpError> {
+) -> Result<(), http::Error> {
 	let mut cookies = cookies.clone();
 
 	cookies.add_signed(
@@ -396,18 +393,15 @@ impl MediaFile {
 }
 
 impl Responder for MediaFile {
-	type Error = actix_web::Error;
-	type Future = Ready<Result<HttpResponse, actix_web::Error>>;
+	type Body = BoxBody;
 
-	fn respond_to(self, req: &HttpRequest) -> Self::Future {
-		let mut response = self.named_file.into_response(req);
-		if let Ok(r) = response.as_mut() {
-			// Intentionally turn off content encoding for media files because:
-			// 1. There is little value in compressing files that are already compressed (mp3, jpg, etc.)
-			// 2. The Content-Length header is incompatible with content encoding (other than identity), and can be valuable for clients
-			r.encoding(ContentEncoding::Identity);
-		}
-		ready(response)
+	fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
+		// Intentionally turn off content encoding for media files because:
+		// 1. There is little value in compressing files that are already compressed (mp3, jpg, etc.)
+		// 2. The Content-Length header is incompatible with content encoding (other than identity), and can be valuable for clients
+		self.named_file
+			.set_content_encoding(ContentEncoding::Identity)
+			.into_response(req)
 	}
 }
 
@@ -417,10 +411,10 @@ where
 	I: Send + 'static,
 	E: Send + std::fmt::Debug + 'static + Into<APIError>,
 {
-	actix_web::web::block(f).await.map_err(|e| match e {
-		BlockingError::Error(e) => e.into(),
-		BlockingError::Canceled => APIError::Unspecified,
-	})
+	actix_web::web::block(f)
+		.await
+		.map_err(|_| APIError::Unspecified)
+		.and_then(|r| r.map_err(|e| e.into()))
 }
 
 #[get("/version")]
@@ -647,7 +641,7 @@ async fn browse(
 	path: web::Path<String>,
 ) -> Result<Json<Vec<index::CollectionFile>>, APIError> {
 	let result = block(move || {
-		let path = percent_decode_str(&(path.0)).decode_utf8_lossy();
+		let path = percent_decode_str(&path).decode_utf8_lossy();
 		index.browse(Path::new(path.as_ref()))
 	})
 	.await?;
@@ -667,7 +661,7 @@ async fn flatten(
 	path: web::Path<String>,
 ) -> Result<Json<Vec<index::Song>>, APIError> {
 	let songs = block(move || {
-		let path = percent_decode_str(&(path.0)).decode_utf8_lossy();
+		let path = percent_decode_str(&path).decode_utf8_lossy();
 		index.flatten(Path::new(path.as_ref()))
 	})
 	.await?;
@@ -713,7 +707,7 @@ async fn get_audio(
 ) -> Result<MediaFile, APIError> {
 	let audio_path = block(move || {
 		let vfs = vfs_manager.get_vfs()?;
-		let path = percent_decode_str(&(path.0)).decode_utf8_lossy();
+		let path = percent_decode_str(&path).decode_utf8_lossy();
 		vfs.virtual_to_real(Path::new(path.as_ref()))
 			.map_err(|_| APIError::VFSPathNotFound)
 	})
@@ -735,7 +729,7 @@ async fn get_thumbnail(
 
 	let thumbnail_path = block(move || {
 		let vfs = vfs_manager.get_vfs()?;
-		let path = percent_decode_str(&(path.0)).decode_utf8_lossy();
+		let path = percent_decode_str(&path).decode_utf8_lossy();
 		let image_path = vfs
 			.virtual_to_real(Path::new(path.as_ref()))
 			.map_err(|_| APIError::VFSPathNotFound)?;
@@ -798,10 +792,10 @@ async fn export_playlist_m3u(
 			.await?;
 	Ok(HttpResponse::Ok()
 		.content_type("application/force-download")
-		.set_header(
-			"Content-Disposition",
-			format!("attachment; filename=\"{}\"", download_file_name),
-		)
+		.insert_header(ContentDisposition {
+			disposition: DispositionType::Attachment,
+			parameters: vec![DispositionParam::Filename(String::from(download_file_name))],
+		})
 		.body(buffer))
 }
 
@@ -815,10 +809,12 @@ async fn import_playlist_m3u(
 ) -> Result<HttpResponse, APIError> {
 	Ok(HttpResponse::Ok()
 		.content_type("application/force-download")
-		.set_header(
-			"Content-Disposition",
-			format!("attachment; filename=\"{}\"", exchange.name),
-		)
+		.insert_header(ContentDisposition {
+			disposition: DispositionType::Attachment,
+			parameters: vec![DispositionParam::Filename(String::from(
+				exchange.name.clone(),
+			))],
+		})
 		.body("hello world"))
 }
 
@@ -843,7 +839,7 @@ async fn lastfm_now_playing(
 		if !user_manager.is_lastfm_linked(&auth.username) {
 			return Err(APIError::LastFMAccountNotLinked);
 		}
-		let path = percent_decode_str(&(path.0)).decode_utf8_lossy();
+		let path = percent_decode_str(&path).decode_utf8_lossy();
 		lastfm_manager.now_playing(&auth.username, Path::new(path.as_ref()))?;
 		Ok(())
 	})
@@ -862,7 +858,7 @@ async fn lastfm_scrobble(
 		if !user_manager.is_lastfm_linked(&auth.username) {
 			return Err(APIError::LastFMAccountNotLinked);
 		}
-		let path = percent_decode_str(&(path.0)).decode_utf8_lossy();
+		let path = percent_decode_str(&path).decode_utf8_lossy();
 		lastfm_manager.scrobble(&auth.username, Path::new(path.as_ref()))?;
 		Ok(())
 	})
@@ -921,16 +917,16 @@ async fn lastfm_unlink(
 	Ok(HttpResponse::new(StatusCode::OK))
 }
 
-async fn my_block<F, I, E>(f: F) -> Result<I, String>
+async fn my_block<F, I, E>(f: F) -> Result<I, APIError>
 where
 	F: FnOnce() -> Result<I, E> + Send + 'static,
 	I: Send + 'static,
-	E: Send + std::fmt::Debug + 'static + Into<String>,
+	E: Send + std::fmt::Debug + 'static + Into<APIError>,
 {
-	actix_web::web::block(f).await.map_err(|e| match e {
-		BlockingError::Error(e) => e.into(),
-		BlockingError::Canceled => "The task was cancelled".to_string(),
-	})
+	actix_web::web::block(f)
+		.await
+		.map_err(|_| APIError::Unspecified)
+		.and_then(|r| r.map_err(|_| APIError::Unspecified))
 }
 
 fn make_error_response(err: String) -> HttpResponse {
@@ -946,11 +942,11 @@ async fn get_announcement(
 	announce: web::Query<index::RjRequest>,
 ) -> HttpResponse {
 	let res = my_block(move || {
-		rj::get_announcement(index.as_ref(), announce.into_inner()).map_err(|op| op.to_string())
+		rj::get_announcement(index.as_ref(), announce.into_inner()).map_err(|op| op)
 	})
 	.await;
 	if res.is_err() {
-		return make_error_response(res.expect_err("Memory corruption"));
+		return make_error_response(res.expect_err("Memory corruption").to_string());
 	}
 	let (content_type, buffer) = res.unwrap();
 	HttpResponse::build(StatusCode::OK)
@@ -971,16 +967,16 @@ fn update_user_settings(
 	index: Data<Index>,
 	settings_manager: Data<settings::Manager>,
 	new_settings: Json<rj::UserSettings>,
-) -> Result<(), String> {
+) -> Result<(), APIError> {
 	let mut rj_manager = index.rj_manager.write().unwrap();
 	let to_restore = rj_manager
 		.update_user_settings(new_settings.to_owned())
-		.map_err(|err| err.to_string())?;
+		.map_err(|err| err)?;
 	settings_manager
 		.put_rj_user_settings(&new_settings.to_owned())
 		.map_err(|op| {
 			rj_manager.restore_user_settings(to_restore);
-			op.to_string()
+			op.into()
 		})
 }
 
@@ -993,7 +989,7 @@ async fn put_rj_user_settings(
 ) -> HttpResponse {
 	let res = my_block(move || update_user_settings(index, settings_manager, new_settings)).await;
 	if let Some(err) = res.err() {
-		return make_error_response(err);
+		return make_error_response(err.to_string());
 	}
 
 	HttpResponse::build(StatusCode::OK)
@@ -1014,16 +1010,16 @@ fn update_admin_settings(
 	index: Data<Index>,
 	settings_manager: Data<settings::Manager>,
 	new_settings: Json<rj::AdminSettings>,
-) -> Result<(), String> {
+) -> Result<(), APIError> {
 	let mut rj_manager = index.rj_manager.write().unwrap();
 	let to_restore = rj_manager
 		.update_admin_settings(new_settings.to_owned())
-		.map_err(|err| err.to_string())?;
+		.map_err(|err| err)?;
 	settings_manager
 		.put_rj_admin_settings(&new_settings.to_owned())
 		.map_err(|op| {
 			rj_manager.update_admin_settings(to_restore).unwrap();
-			op.to_string()
+			op.into()
 		})
 }
 
@@ -1036,7 +1032,7 @@ async fn put_rj_admin_settings(
 ) -> HttpResponse {
 	let res = my_block(move || update_admin_settings(index, settings_manager, new_settings)).await;
 	if let Some(err) = res.err() {
-		return make_error_response(err);
+		return make_error_response(err.to_string());
 	}
 	HttpResponse::new(StatusCode::OK)
 }

@@ -6,7 +6,7 @@ pub enum ParseError {
 	SelfRecursion { name: String, fragment: String },
 
 	#[error(
-        "invalid number({count:?}) of delimiters({delimiter:?}) in name:{name:?} fragment:{:?} word:{word:?}"
+        "invalid count({count:?}) of delimiter({delimiter:?}) in name({name:?}) fragment({fragment:?}) word:{word:?}"
     )]
 	OddNumberOfDelimiters {
 		count: usize,
@@ -16,7 +16,7 @@ pub enum ParseError {
 		word: String,
 	},
 
-	#[error("interleaved delimiters({delimiter:?}) in name:{name:?} fragment:{:?} word:{word:?}")]
+	#[error("interleaved delimiters({delimiter:?}) in name:{name:?} fragment:{fragment:?} word:{word:?}")]
 	InterleavedDelimiter {
 		delimiter: char,
 		name: String,

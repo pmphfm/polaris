@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::app::index::QueryError;
-use crate::app::{config, playlist, settings, user};
+use crate::app::{config, playlist, rj, settings, user};
 
 #[derive(Error, Debug)]
 pub enum APIError {
@@ -31,6 +31,8 @@ pub enum APIError {
 	UserNotFound,
 	#[error("Playlist not found:{0}")]
 	PlaylistNotFound(String),
+	#[error("Failed to parse:{0}")]
+	ParseFailed(String),
 	#[error("Unspecified")]
 	Unspecified,
 }
@@ -56,6 +58,12 @@ impl From<playlist::Error> for APIError {
 			playlist::Error::UserNotFound => APIError::UserNotFound,
 			playlist::Error::Unspecified => APIError::Unspecified,
 		}
+	}
+}
+
+impl From<rj::ParseError> for APIError {
+	fn from(error: rj::ParseError) -> APIError {
+		APIError::ParseFailed(error.to_string())
 	}
 }
 
